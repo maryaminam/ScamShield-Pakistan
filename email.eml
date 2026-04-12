@@ -1,0 +1,534 @@
+Delivered-To: maryaminam4113@gmail.com
+Received: by 2002:a05:6a11:d884:b0:6b9:b2a6:b306 with SMTP id od4csp1109821pxc;
+        Sat, 11 Apr 2026 08:32:10 -0700 (PDT)
+X-Received: by 2002:a05:6830:34a3:b0:7d7:f5d4:ef5b with SMTP id 46e09a7af769-7dc27cc21e0mr4814824a34.7.1775921529833;
+        Sat, 11 Apr 2026 08:32:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1775921529; cv=none;
+        d=google.com; s=arc-20240605;
+        b=HSKAZ6Y8qqFmVyf2qbsw6EFQ2ZpXz2FVda7yeqX9syGU+x5k/I2h8MTKdw24httxEb
+         OqU2QOu57WCcBomEeSu5pjby+dBBvD7xziC9bPklqXYCMj8hgcwJ05k/0ckl716or6dz
+         Rp9+dRSUUenqwQpbOGsod+k+py0PBRmj7iEz64kr8HjjZ5sK7ADBKV72c6YE/+MjrM58
+         ZqHAENn63wJIpoPBNcgKC5LHbQn7snr9fH/4jqPQuLOR76OS0QScSvRPiQyo+vKtMoXS
+         8oD0xAKmQmudBH+oLHNr486rOaoLbN2mekgTy5+2B1Lft0/epflwN9NHLcMWoaONs9Yu
+         C6uQ==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;
+        h=to:from:subject:message-id:gmsai:date:mime-version:dkim-signature;
+        bh=HgWZTsnSSIVSgqNihRoWp0kSu/wQJW4qdmsPvj20lgw=;
+        fh=iKcVxDQgrICWtHfG2Te3E+KlgHzDjv728WL7DhRN8i8=;
+        b=icFK+MltN6KylCmfUBivL34pDasnuT3DQqkszhVWIukQClVBp8qp8oQAygJRqhd/Ck
+         z7x/Uw/H7QgsO0But1Qj+gvSjbhW04IUPuWwMKhPRGQo/jn6V4q7AIxFzmCp6Yk2Ny00
+         QeP3PeGLEvdUWF54EwHgyroyfbdI7oBQeURJK62JSSBQsH9Zox4Br4V8vMclGhBbYvBD
+         kFUaDQFp9VgKHOwJWX4upuVeH2DakrJetGFmuxWgGrR16bHqJEUvGgm8GvZtCPk7cqws
+         EyWjGIrt/Y8dSe7qUHEtQNmnpMGPkLxHlAHWr+FkTdGmbgqGJjb9ZSUGHcHx676/E95o
+         ogpg==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@google.com header.s=20251104 header.b="sUg1/mpP";
+       spf=pass (google.com: domain of 3egnaaq8kdgsnl2pp23-yz2p0w9rzzrwp.nzxxl29lxtylxfccerxltw.nzx@chime-notifications.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3eGnaaQ8KDgsnl2pp23-yz2p0w9rzzrwp.nzxxl29lxtylxFCCErxltw.nzx@chime-notifications.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com;
+       dara=pass header.i=@gmail.com
+Return-Path: <3eGnaaQ8KDgsnl2pp23-yz2p0w9rzzrwp.nzxxl29lxtylxFCCErxltw.nzx@chime-notifications.bounces.google.com>
+Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
+        by mx.google.com with SMTPS id 46e09a7af769-7dc26954948sor2723151a34.15.2026.04.11.08.32.09
+        for <maryaminam4113@gmail.com>
+        (Google Transport Security);
+        Sat, 11 Apr 2026 08:32:09 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3egnaaq8kdgsnl2pp23-yz2p0w9rzzrwp.nzxxl29lxtylxfccerxltw.nzx@chime-notifications.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@google.com header.s=20251104 header.b="sUg1/mpP";
+       spf=pass (google.com: domain of 3egnaaq8kdgsnl2pp23-yz2p0w9rzzrwp.nzxxl29lxtylxfccerxltw.nzx@chime-notifications.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3eGnaaQ8KDgsnl2pp23-yz2p0w9rzzrwp.nzxxl29lxtylxFCCErxltw.nzx@chime-notifications.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com;
+       dara=pass header.i=@gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20251104; t=1775921529; x=1776526329; dara=google.com;
+        h=to:from:subject:message-id:gmsai:date:mime-version:from:to:cc
+         :subject:date:message-id:reply-to;
+        bh=HgWZTsnSSIVSgqNihRoWp0kSu/wQJW4qdmsPvj20lgw=;
+        b=sUg1/mpPcFHKCg6l1QoY4wQblF6spnc7RhuZqFOCrcnjFOC7hPzsdDl2GFv3nD+U0Q
+         Wd3sfzKa0ajGLGhZkFdWpttTb45Rszj59a4jiVUDO8DUNgD5tsyWhpxb3LyDJXadyive
+         3Z/IHS4mbKhRDBKj2IsxXsTl9RJnZV6gLRTBYQZNF84ZCSQQdS3hVKqMGReI0i5+M0Dz
+         ekOM7GrM1s3lboPkExMt/sUFOYKHtLa/fbjYHTjbq02rR3b1nH8nGXUUh8vcleA0ud4M
+         yT8yucxsk6/WvtZ9SYMLkaMkW2b76S7r6n9PaXqexLQbvWQYYEhN97sEIAjNgw/92d2m
+         ePsQ==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20251104; t=1775921529; x=1776526329;
+        h=to:from:subject:message-id:gmsai:date:mime-version
+         :x-gm-message-state:from:to:cc:subject:date:message-id:reply-to;
+        bh=HgWZTsnSSIVSgqNihRoWp0kSu/wQJW4qdmsPvj20lgw=;
+        b=SX8eaW7EXK4LJP/BukFAAeFapp2IeLKKUidXwxose5mWZpAM/pRaQKOPQcWiyTQjV3
+         8o8C+ECm9QE47RmKH7grsf7cpWAT3OTnPpaXwWEbt4eziC7m1i1vs5az539rj7wE3D6h
+         g7C0nFFcVa3YQaof0a5umxt1lSia5QvoVIdmVyDxK3Q5m2kSPbbuynEyS/VulPTDsesg
+         TjdU/+ibm7tOFhBFtNjnOS0PGSh7f/5LLmK8y1jQ29azlG6aezP75nUGsRqA8KItPVvi
+         V07cqh7OavZh30v6UM5D5TP4o1EBUMlu1YICd+dLMUb2QH76EmOz5wrT5p7gii/x++rM
+         Cf8g==
+X-Gm-Message-State: AOJu0Yw/rqn1hENm77DOaRYM/PKS7N29/r0hEVls+inUBzIw9dR8I2xM
+	r6l5HznGYnZmt+AxlFWtY2yJEemNQbIOt9Ffu9jfm20e1D0uIRceQjrFGTduolq9D+6+Nst++Nv
+	cDOeG7zgOH0vDiAvinMcQR8OHVGYLABBSwkfyQJvNenYe4x+5P8Bu6j0vITYbTPFf6hOFbPAH7T
+	Pqz0JBJ5+djgwCwsmZ6Qa722S8tNJ6
+MIME-Version: 1.0
+X-Received: by 2002:a05:6820:2e8c:b0:67d:e0fe:8434 with SMTP id
+ 006d021491bc7-68be671f6d2mr2637692eaf.27.1775921528947; Sat, 11 Apr 2026
+ 08:32:08 -0700 (PDT)
+Date: Sat, 11 Apr 2026 08:32:08 -0700
+gmsai: true
+X-Google-Notification-Metadata: CgISAA
+X-Notifications: 898e7011-b815-4080-9f0b-d368560054a6
+X-Notifications-Bounce-Info: AZ3VuTi5IWjAX6DO96gaBJxagJyfLWxXci15He4HA13OrlqQkXIUEPKWaRbV7be5xfmamoAhn2_Cn4hIiINMiS9TYMmnhPBrkRhN6I4qOkOikthcKcz3qCegnYF2rrQcM90K0dZUoaX3gcXjsJX2n6b5OkPmSC6azmy_kAgg_rB59esl_a8lYdNGy1r6CW_GlzgbcS1g3jwzNwNxparBMiTBdGG7OQHSbNdukWQMdTqFuAog6CEdQkh-GL6XvJ8uhqpGr9jK6RRaZ8Yx0M_K1gC369UJiv5lGn4WNjAwNjA0MDQxNTM1NTk2OTMzMg
+Message-ID: <KkxD6GeE4RamyhGHSsK1YA@notifications.google.com>
+Subject: New job(s) match your search on Google Careers
+From: careers-noreply@google.com
+To: maryaminam4113@gmail.com
+Content-Type: multipart/alternative; boundary="000000000000e2bcd3064f30f3d0"
+
+--000000000000e2bcd3064f30f3d0
+Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+Content-Transfer-Encoding: base64
+
+PHRhYmxlIGJvcmRlcj0iMCIgY2VsbHBhZGRpbmc9IjAiIGNlbGxzcGFjaW5nPSIwIiAgDQpzdHls
+ZT0iYmFja2dyb3VuZC1jb2xvcjojZjFmMWYxOyB3aWR0aDoxMDAlOyBoZWlnaHQ6MTAwJTsgIA0K
+Zm9udC1mYW1pbHk6c2Fucy1zZXJpZjsgcGFkZGluZy10b3A6MzZweDsgYm9yZGVyLXNwYWNpbmc6
+MDsiICANCnJvbGU9InByZXNlbnRhdGlvbiI+PHRhYmxlIGJvcmRlcj0iMCIgY2VsbHBhZGRpbmc9
+IjAiIGNlbGxzcGFjaW5nPSIwIiAgDQphbGlnbj0iY2VudGVyIiBzdHlsZT0iYmFja2dyb3VuZC1j
+b2xvcjojZmZmOyBsaW5lLWhlaWdodDoxOHB4OyAgDQpib3JkZXItc3BhY2luZzowOyB3aWR0aDo5
+MCU7IG1heC13aWR0aDo2ODBweDsgbWluLXdpZHRoOjI4MHB4OyIgIA0Kcm9sZT0icHJlc2VudGF0
+aW9uIj48dHIgc3R5bGU9ImJhY2tncm91bmQtY29sb3I6IzFBNzNFODsiPjx0ZCBhbGlnbj0ibGVm
+dCIgIA0Kc3R5bGU9ImJhY2tncm91bmQtY29sb3I6IzFBNzNFODsgcGFkZGluZzoxMnB4IDAgMTJw
+eCAxNnB4OyAgDQp3aWR0aDozNnB4OyI+PGltZyBhbHQ9IiIgaGVpZ2h0PSIyNCIgd2lkdGg9IjI0
+IiAgDQpzcmM9Imh0dHBzOi8vY2FyZWVycy5nb29nbGUuY29tL2pvYnMvZGlzdC9pbWcvZW1haWwv
+c2VhcmNoLXdoaXRlLnBuZyIvPjwvdGQ+PHRkICANCmFsaWduPSJsZWZ0IiBzdHlsZT0iZm9udC1z
+dHlsZTppdGFsaWM7IGZvbnQtc2l6ZToxNHB4OyBjb2xvcjp3aGl0ZTsgIA0KYmFja2dyb3VuZC1j
+b2xvcjojMUE3M0U4OyI+PGg0PjxzcGFuIHN0eWxlPSJmb250LXN0eWxlOml0YWxpYzsgIA0KZm9u
+dC1zaXplOjE0cHg7IGZvbnQtd2VpZ2h0Om5vcm1hbDsgY29sb3I6d2hpdGU7ICANCmZvbnQ6LWFw
+cGxlLXN5c3RlbS1ib2R5OyI+Rm9yIHlvdXIgc2VhcmNoIDxzcGFuIHN0eWxlPSJmb250LXdlaWdo
+dDogYm9sZDsgIA0KZm9udC1zaXplOjE0cHg7IGZvbnQ6LWFwcGxlLXN5c3RlbS1ib2R5OyI+Tm8g
+IA0Ka2V5d29yZHM8L3NwYW4+PC9zcGFuPjwvaDQ+PC90ZD48dGQgYWxpZ249InJpZ2h0IiBzdHls
+ZT0icGFkZGluZzoxMnB4IDE2cHggIA0KMTJweCAwOyBtaW4td2lkdGg6OTZweDsgYmFja2dyb3Vu
+ZC1jb2xvcjojMUE3M0U4Ij48YSAgDQpocmVmPSJodHRwczovL3d3dy5nb29nbGUuY29tL2Fib3V0
+L2NhcmVlcnMvYXBwbGljYXRpb25zL2pvYnMvcmVzdWx0cz9lbXBsb3ltZW50X3R5cGU9SU5URVJO
+JmFtcDtjb21wYW55PUZpdGJpdCZhbXA7Y29tcGFueT1Hb29nbGUmYW1wO2NvbXBhbnk9WW91VHVi
+ZSZhbXA7c29ydF9ieT1kYXRlJmFtcDt1dG1fY2FtcGFpZ249am9iYWxlcnRzJmFtcDt1dG1fY29u
+dGVudD1yZXJ1bl9zZWFyY2gmYW1wO3V0bV9tZWRpdW09ZW1haWwmYW1wO3V0bV9zb3VyY2U9Z29v
+Z2xlam9icyZhbXA7c3JjPU9ubGluZS9EaXJlY3QvR29vZ2xlK0pvYnMrU2l0ZStBbGVydCtFbWFp
+bHMiICANCnN0eWxlPSJ0ZXh0LWRlY29yYXRpb246bm9uZTsiPjxzcGFuIHN0eWxlPSJmb250LXN0
+eWxlOm5vcm1hbDsgIA0KZm9udC1zaXplOjE0cHg7IGZvbnQtd2VpZ2h0OjUwMDsgZm9udDotYXBw
+bGUtc3lzdGVtLWJvZHk7IGNvbG9yOndoaXRlOyAgDQp0ZXh0LXRyYW5zZm9ybTp1cHBlcmNhc2U7
+IHdvcmQtYnJlYWs6a2VlcC1hbGw7Ij5WaWV3ICANCm1vcmU8L3NwYW4+PC9hPjwvdGQ+PC90cj48
+dHI+PHRkIGFsaWduPSJsZWZ0IiBzdHlsZT0icGFkZGluZzoxNnB4OyAgDQpmb250LXdlaWdodDo1
+MDA7IiBjb2xzcGFuPSIyIj48aDUgc3R5bGU9ImNvbG9yOiMyMTIxMjE7IGZvbnQtc2l6ZToxNnB4
+OyAgDQpsaW5lLWhlaWdodDoyMnB4OyBtYXJnaW46MDsgZm9udC13ZWlnaHQ6bm9ybWFsOyAgDQpm
+b250Oi1hcHBsZS1zeXN0ZW0tYm9keTsiPjxhIHN0eWxlPSJ0ZXh0LWRlY29yYXRpb246bm9uZTsg
+Y29sb3I6IzIxMjEyMTsiICANCmhyZWY9Imh0dHBzOi8vd3d3Lmdvb2dsZS5jb20vYWJvdXQvY2Fy
+ZWVycy9hcHBsaWNhdGlvbnMvam9icy9yZXN1bHRzLzExMzU1Njk0NTYxNjQxMzM4Mi1yZWNydWl0
+aW5nLXNwZWNpYWxpc3QsLXBlb3BsZS1vcGVyYXRpb25zLC1ncmVhY2gtcHJvZ3JhbS1mb3ItcGVv
+cGxlLXdpdGgtZGlzYWJpbGl0aWVzLSUyOOauiyANCumanOS6uuWjq+WylyANCuS9jSUyOS0lMjhl
+bmdsaXNoLC1tYW5kYXJpbiUyOT91dG1fY2FtcGFpZ249am9iYWxlcnRzJmFtcDt1dG1fY29udGVu
+dD1SZWNydWl0aW5nK1NwZWNpYWxpc3QsK1Blb3BsZStPcGVyYXRpb25zLCtnUmVhY2grUHJvZ3Jh
+bStmb3IrUGVvcGxlK3dpdGgrRGlzYWJpbGl0aWVzKyUyOCVFNiVBRSU4QiVFOSU5QSU5QyVFNCVC
+QSVCQSVFNSVBMyVBQiVFNSVCMiU5NyVFNCVCRCU4RCUyOSslMjhFbmdsaXNoLCtNYW5kYXJpbiUy
+OSZhbXA7dXRtX21lZGl1bT1lbWFpbCZhbXA7dXRtX3NvdXJjZT1nb29nbGVqb2JzJmFtcDtzcmM9
+T25saW5lL0RpcmVjdC9Hb29nbGUrSm9icytTaXRlK0FsZXJ0K0VtYWlscyZhbXA7ZW1wbG95bWVu
+dF90eXBlPUlOVEVSTiZhbXA7Y29tcGFueT1GaXRiaXQmYW1wO2NvbXBhbnk9R29vZ2xlJmFtcDtj
+b21wYW55PVlvdVR1YmUmYW1wO3NvcnRfYnk9ZGF0ZSI+PHU+UmVjcnVpdGluZyAgDQpTcGVjaWFs
+aXN0LCBQZW9wbGUgT3BlcmF0aW9ucywgZ1JlYWNoIFByb2dyYW0gZm9yIFBlb3BsZSB3aXRoIERp
+c2FiaWxpdGllcyAgDQoo5q6L6Zqc5Lq65aOr5bKX5L2NKSAoRW5nbGlzaCwgTWFuZGFyaW4pPC91
+PjwvYT48L2g1PjxzcGFuIHN0eWxlPSJjb2xvcjojNzU3NTc1OyAgDQpmb250LXNpemU6MTRweDsg
+Zm9udC13ZWlnaHQ6NDAwOyBsaW5lLWhlaWdodDoyMHB4OyAgDQpmb250Oi1hcHBsZS1zeXN0ZW0t
+Ym9keTsiPkdvb2dsZSZuYnNwOyZuZGFzaDsmbmJzcDtTaGFuZ2hhaTxicj4yIGRheXMgIA0KYWdv
+PC9zcGFuPjxzcGFuIHN0eWxlPSJjb2xvcjojMjEyMTIxOyBmb250LXNpemU6MTRweDsgZm9udC13
+ZWlnaHQ6NTAwOyAgDQpsaW5lLWhlaWdodDoyMHB4OyBmb250Oi1hcHBsZS1zeXN0ZW0tYm9keTsi
+Pjx1bD4NCjxsaT5CYWNoZWxvciYjMzk7cyBkZWdyZWUgb3IgZXF1aXZhbGVudCBwcmFjdGljYWwg
+ZXhwZXJpZW5jZS48L2xpPg0KPGxpPkV4cGVyaWVuY2Ugd29ya2luZyBpbiBodW1hbiByZXNvdXJj
+ZSwgcmVjcnVpdG1lbnQsIGJ1c2luZXNzIG9yICANCnN0YWtlaG9sZGVyIG1hbmFnZW1lbnQuPC9s
+aT4NCjxsaT5BYmlsaXR5IHRvIGNvbW11bmljYXRlIGluIEVuZ2xpc2ggYW5kIE1hbmRhcmluIGZs
+dWVudGx5IHRvIGNvbGxhYm9yYXRlICANCndpdGggY29sbGVhZ3VlcyBhbmQgY29tcGxldGUgdGFz
+a3MgYW5kIHByb2plY3RzLjwvbGk+DQo8L3VsPjwvc3Bhbj48L3RkPjwvdHI+PHRyPjx0ZCBjb2xz
+cGFuPSIzIiBzdHlsZT0idGV4dC1hbGlnbjpjZW50ZXI7Ij48aHIgIA0Kc3R5bGU9IndpZHRoOjkw
+JTsgYm9yZGVyOjA7IGJvcmRlci1ib3R0b206MXB4IHNvbGlkICANCiNmMWYxZjE7Ii8+PC90ZD48
+L3RyPjx0cj48dGQgYWxpZ249ImxlZnQiIHN0eWxlPSJwYWRkaW5nOjE2cHg7ICANCmZvbnQtd2Vp
+Z2h0OjUwMDsiIGNvbHNwYW49IjIiPjxoNSBzdHlsZT0iY29sb3I6IzIxMjEyMTsgZm9udC1zaXpl
+OjE2cHg7ICANCmxpbmUtaGVpZ2h0OjIycHg7IG1hcmdpbjowOyBmb250LXdlaWdodDpub3JtYWw7
+ICANCmZvbnQ6LWFwcGxlLXN5c3RlbS1ib2R5OyI+PGEgc3R5bGU9InRleHQtZGVjb3JhdGlvbjpu
+b25lOyBjb2xvcjojMjEyMTIxOyIgIA0KaHJlZj0iaHR0cHM6Ly93d3cuZ29vZ2xlLmNvbS9hYm91
+dC9jYXJlZXJzL2FwcGxpY2F0aW9ucy9qb2JzL3Jlc3VsdHMvMTM4OTcyODIwNDY0OTAyODU0LXNv
+ZnR3YXJlLWVuZ2luZWVyaW5nLWludGVybiwtcGVvcGxlLXdpdGgtZGlzYWJpbGl0aWVzLC0yMDI2
+LSUyOHBvcnR1Z3Vlc2UsLWVuZ2xpc2glMjk/dXRtX2NhbXBhaWduPWpvYmFsZXJ0cyZhbXA7dXRt
+X2NvbnRlbnQ9U29mdHdhcmUrRW5naW5lZXJpbmcrSW50ZXJuLCtQZW9wbGUrd2l0aCtEaXNhYmls
+aXRpZXMsKzIwMjYrJTI4UG9ydHVndWVzZSwrRW5nbGlzaCUyOSZhbXA7dXRtX21lZGl1bT1lbWFp
+bCZhbXA7dXRtX3NvdXJjZT1nb29nbGVqb2JzJmFtcDtzcmM9T25saW5lL0RpcmVjdC9Hb29nbGUr
+Sm9icytTaXRlK0FsZXJ0K0VtYWlscyZhbXA7ZW1wbG95bWVudF90eXBlPUlOVEVSTiZhbXA7Y29t
+cGFueT1GaXRiaXQmYW1wO2NvbXBhbnk9R29vZ2xlJmFtcDtjb21wYW55PVlvdVR1YmUmYW1wO3Nv
+cnRfYnk9ZGF0ZSI+PHU+U29mdHdhcmUgIA0KRW5naW5lZXJpbmcgSW50ZXJuLCBQZW9wbGUgd2l0
+aCBEaXNhYmlsaXRpZXMsIDIwMjYgKFBvcnR1Z3Vlc2UsICANCkVuZ2xpc2gpPC91PjwvYT48L2g1
+PjxzcGFuIHN0eWxlPSJjb2xvcjojNzU3NTc1OyBmb250LXNpemU6MTRweDsgIA0KZm9udC13ZWln
+aHQ6NDAwOyBsaW5lLWhlaWdodDoyMHB4OyAgDQpmb250Oi1hcHBsZS1zeXN0ZW0tYm9keTsiPkdv
+b2dsZSZuYnNwOyZuZGFzaDsmbmJzcDtNdWx0aXBsZSBTaXRlczxicj4yIGRheXMgIA0KYWdvPC9z
+cGFuPjxzcGFuIHN0eWxlPSJjb2xvcjojMjEyMTIxOyBmb250LXNpemU6MTRweDsgZm9udC13ZWln
+aHQ6NTAwOyAgDQpsaW5lLWhlaWdodDoyMHB4OyBmb250Oi1hcHBsZS1zeXN0ZW0tYm9keTsiPjx1
+bD4NCjxsaT5EdWUgdG8gbG9jYWwgY29tcGxpYW5jZSByZXF1aXJlbWVudHMsIGFwcGxpY2FudHMg
+bXVzdCBiZSBjdXJyZW50bHkgIA0KcHVyc3VpbmcgYSBCYWNoZWxvciYjMzk7cyBpbiBDb21wdXRl
+ciBTY2llbmNlIG9yIHJlbGF0ZWQgdGVjaG5pY2FsIGZpZWxkIGF0ICANCmEgdW5pdmVyc2l0eSBp
+biBCcmF6aWwgd2l0aCBhbiBleHBlY3RlZCBncmFkdWF0aW9uIGRhdGUgYmV0d2VlbiBEZWNlbWJl
+ciAgDQoyMDI2IGFuZCBGZWJydWFyeSAyMDI3LjwvbGk+DQo8bGk+RXhwZXJpZW5jZSB3cml0aW5n
+IGNvZGUgZml4ZXMgYW5kIHByb2dyYW1taW5nIGluIG9uZSBvciBtb3JlIG9mIHRoZSAgDQpmb2xs
+b3dpbmcgbGFuZ3VhZ2VzOiBDLCBDKyssIEphdmEsIEphdmFTY3JpcHQsIFB5dGhvbiwgR29sYW5n
+LCBEYXJ0IG9yICANCktvdGxpbi48L2xpPg0KPGxpPkFiaWxpdHkgdG8gY29tbXVuaWNhdGUgaW4g
+UG9ydHVndWVzZSBhbmQgRW5nbGlzaCBmbHVlbnRseSB0byBlbmdhZ2UgIA0Kd2l0aCBpbnRlcm5h
+bCBwcm9qZWN0IHN0YWtlaG9sZGVycy48L2xpPg0KPC91bD48L3NwYW4+PC90ZD48L3RyPjx0cj48
+dGQgY29sc3Bhbj0iMyIgc3R5bGU9InRleHQtYWxpZ246Y2VudGVyOyI+PGhyICANCnN0eWxlPSJ3
+aWR0aDo5MCU7IGJvcmRlcjowOyBib3JkZXItYm90dG9tOjFweCBzb2xpZCAgDQojZjFmMWYxOyIv
+PjwvdGQ+PC90cj48dHI+PHRkIGFsaWduPSJsZWZ0IiBzdHlsZT0icGFkZGluZzoxNnB4OyAgDQpm
+b250LXdlaWdodDo1MDA7IiBjb2xzcGFuPSIyIj48aDUgc3R5bGU9ImNvbG9yOiMyMTIxMjE7IGZv
+bnQtc2l6ZToxNnB4OyAgDQpsaW5lLWhlaWdodDoyMnB4OyBtYXJnaW46MDsgZm9udC13ZWlnaHQ6
+bm9ybWFsOyAgDQpmb250Oi1hcHBsZS1zeXN0ZW0tYm9keTsiPjxhIHN0eWxlPSJ0ZXh0LWRlY29y
+YXRpb246bm9uZTsgY29sb3I6IzIxMjEyMTsiICANCmhyZWY9Imh0dHBzOi8vd3d3Lmdvb2dsZS5j
+b20vYWJvdXQvY2FyZWVycy9hcHBsaWNhdGlvbnMvam9icy9yZXN1bHRzLzEzNzg2MzM2MTY5Mjg2
+OTMxOC1zb2Z0d2FyZS1lbmdpbmVlcmluZy1waGQtaW50ZXJuLC1zdW1tZXItMjAyNj91dG1fY2Ft
+cGFpZ249am9iYWxlcnRzJmFtcDt1dG1fY29udGVudD1Tb2Z0d2FyZStFbmdpbmVlcmluZytQaEQr
+SW50ZXJuLCtTdW1tZXIrMjAyNiZhbXA7dXRtX21lZGl1bT1lbWFpbCZhbXA7dXRtX3NvdXJjZT1n
+b29nbGVqb2JzJmFtcDtzcmM9T25saW5lL0RpcmVjdC9Hb29nbGUrSm9icytTaXRlK0FsZXJ0K0Vt
+YWlscyZhbXA7ZW1wbG95bWVudF90eXBlPUlOVEVSTiZhbXA7Y29tcGFueT1GaXRiaXQmYW1wO2Nv
+bXBhbnk9R29vZ2xlJmFtcDtjb21wYW55PVlvdVR1YmUmYW1wO3NvcnRfYnk9ZGF0ZSI+PHU+U29m
+dHdhcmUgIA0KRW5naW5lZXJpbmcgUGhEIEludGVybiwgU3VtbWVyIDIwMjY8L3U+PC9hPjwvaDU+
+PHNwYW4gc3R5bGU9ImNvbG9yOiM3NTc1NzU7ICANCmZvbnQtc2l6ZToxNHB4OyBmb250LXdlaWdo
+dDo0MDA7IGxpbmUtaGVpZ2h0OjIwcHg7ICANCmZvbnQ6LWFwcGxlLXN5c3RlbS1ib2R5OyI+R29v
+Z2xlJm5ic3A7Jm5kYXNoOyZuYnNwO011bHRpcGxlIFNpdGVzPGJyPjMgZGF5cyAgDQphZ288L3Nw
+YW4+PHNwYW4gc3R5bGU9ImNvbG9yOiMyMTIxMjE7IGZvbnQtc2l6ZToxNHB4OyBmb250LXdlaWdo
+dDo1MDA7ICANCmxpbmUtaGVpZ2h0OjIwcHg7IGZvbnQ6LWFwcGxlLXN5c3RlbS1ib2R5OyI+PHVs
+Pg0KPGxpPlB1cnN1aW5nIGEgUGhEIHByb2dyYW0gd2l0aCBhIGZvY3VzIGluIHNvZnR3YXJlIGRl
+dmVsb3BtZW50IG9yIG90aGVyICANCnRlY2huaWNhbCByZWxhdGVkIGZpZWxkLjwvbGk+DQo8bGk+
+RXhwZXJpZW5jZSB3aXRoIG9uZSBvciBtb3JlIGdlbmVyYWwgcHVycG9zZSBwcm9ncmFtbWluZyBs
+YW5ndWFnZXMgIA0KKGUuZy4sIEphdmEsIEMvQysrLCBQeXRob24sIEphdmFTY3JpcHQsIEdvLCBl
+dGMuKS48YnI+PC9saT4NCjxsaT5FeHBlcmllbmNlIHdvcmtpbmcgaW4gVW5peC9MaW51eCBlbnZp
+cm9ubWVudHMuPGJyPjwvbGk+DQo8bGk+RXhwZXJpZW5jZSB3aXRoIGRhdGEgc3RydWN0dXJlcywg
+YWxnb3JpdGhtcywgYW5kIHNvZnR3YXJlICANCmRlc2lnbi48YnI+PC9saT4NCjwvdWw+PC9zcGFu
+PjwvdGQ+PC90cj48dHI+PHRkIGNvbHNwYW49IjMiIHN0eWxlPSJ0ZXh0LWFsaWduOmNlbnRlcjsi
+PjxociAgDQpzdHlsZT0id2lkdGg6OTAlOyBib3JkZXI6MDsgYm9yZGVyLWJvdHRvbToxcHggc29s
+aWQgIA0KI2YxZjFmMTsiLz48L3RkPjwvdHI+PHRyPjx0ZCBhbGlnbj0ibGVmdCIgc3R5bGU9InBh
+ZGRpbmc6MTZweDsgIA0KZm9udC13ZWlnaHQ6NTAwOyIgY29sc3Bhbj0iMiI+PGg1IHN0eWxlPSJj
+b2xvcjojMjEyMTIxOyBmb250LXNpemU6MTZweDsgIA0KbGluZS1oZWlnaHQ6MjJweDsgbWFyZ2lu
+OjA7IGZvbnQtd2VpZ2h0Om5vcm1hbDsgIA0KZm9udDotYXBwbGUtc3lzdGVtLWJvZHk7Ij48YSBz
+dHlsZT0idGV4dC1kZWNvcmF0aW9uOm5vbmU7IGNvbG9yOiMyMTIxMjE7IiAgDQpocmVmPSJodHRw
+czovL3d3dy5nb29nbGUuY29tL2Fib3V0L2NhcmVlcnMvYXBwbGljYXRpb25zL2pvYnMvcmVzdWx0
+cy83ODg3OTgxOTkwMjY1NzIyMi11c2VyLWV4cGVyaWVuY2UtZGVzaWduLWludGVybiwtMjAyNj91
+dG1fY2FtcGFpZ249am9iYWxlcnRzJmFtcDt1dG1fY29udGVudD1Vc2VyK0V4cGVyaWVuY2UrRGVz
+aWduK0ludGVybiwrMjAyNiZhbXA7dXRtX21lZGl1bT1lbWFpbCZhbXA7dXRtX3NvdXJjZT1nb29n
+bGVqb2JzJmFtcDtzcmM9T25saW5lL0RpcmVjdC9Hb29nbGUrSm9icytTaXRlK0FsZXJ0K0VtYWls
+cyZhbXA7ZW1wbG95bWVudF90eXBlPUlOVEVSTiZhbXA7Y29tcGFueT1GaXRiaXQmYW1wO2NvbXBh
+bnk9R29vZ2xlJmFtcDtjb21wYW55PVlvdVR1YmUmYW1wO3NvcnRfYnk9ZGF0ZSI+PHU+VXNlciAg
+DQpFeHBlcmllbmNlIERlc2lnbiBJbnRlcm4sIDIwMjY8L3U+PC9hPjwvaDU+PHNwYW4gc3R5bGU9
+ImNvbG9yOiM3NTc1NzU7ICANCmZvbnQtc2l6ZToxNHB4OyBmb250LXdlaWdodDo0MDA7IGxpbmUt
+aGVpZ2h0OjIwcHg7ICANCmZvbnQ6LWFwcGxlLXN5c3RlbS1ib2R5OyI+R29vZ2xlJm5ic3A7Jm5k
+YXNoOyZuYnNwO1PDo28gUGF1bG88YnI+NCBkYXlzICANCmFnbzwvc3Bhbj48c3BhbiBzdHlsZT0i
+Y29sb3I6IzIxMjEyMTsgZm9udC1zaXplOjE0cHg7IGZvbnQtd2VpZ2h0OjUwMDsgIA0KbGluZS1o
+ZWlnaHQ6MjBweDsgZm9udDotYXBwbGUtc3lzdGVtLWJvZHk7Ij48dWw+DQo8bGk+RHVlIHRvIGxv
+Y2FsIGNvbXBsaWFuY2UgcmVxdWlyZW1lbnRzLCBhcHBsaWNhbnRzIG11c3QgYmUgY3VycmVudGx5
+ICANCnB1cnN1aW5nIGEgQmFjaGVsb3ImIzM5O3MgaW4gRGVzaWduIG9yIGEgcmVsYXRlZCB0ZWNo
+bmljYWwgZmllbGQgYXQgYSAgDQp1bml2ZXJzaXR5IGluIEJyYXppbCB3aXRoIGFuIGV4cGVjdGVk
+IGdyYWR1YXRpb24gZGF0ZSBiZXR3ZWVuIERlY2VtYmVyIDIwMjYgIA0KYW5kIEZlYnJ1YXJ5IDIw
+MjcuPC9saT4NCjxsaT5FeHBlcmllbmNlIHdpdGggRmlnbWEuPC9saT4NCjxsaT5SZWxldmFudCBp
+bnRlcm5zaGlwLCB3b3JrLCBvciBwcm9qZWN0IGV4cGVyaWVuY2UgYXBwbGllZCBpbnRvIHByb2R1
+Y3QgIA0KZGVzaWducyBhbmQgZGVzaWduIHByYWN0aWNlcy48L2xpPg0KPGxpPkEgcG9ydGZvbGlv
+IHRoYXQgZGVtb25zdHJhdGVzIGRlc2lnbiBwcm9qZWN0cy48L2xpPg0KPGxpPkFiaWxpdHkgdG8g
+Y29tbXVuaWNhdGUgaW4gUG9ydHVndWVzZSBhbmQgRW5nbGlzaCBmbHVlbnRseSwgdG8gZW5nYWdl
+ICANCndpdGggaW50ZXJuYWwgcHJvamVjdCBzdGFrZWhvbGRlcnMuPC9saT4NCjwvdWw+PC9zcGFu
+PjwvdGQ+PC90cj48dHI+PHRkIGNvbHNwYW49IjMiIHN0eWxlPSJ0ZXh0LWFsaWduOmNlbnRlcjsi
+PjxociAgDQpzdHlsZT0id2lkdGg6OTAlOyBib3JkZXI6MDsgYm9yZGVyLWJvdHRvbToxcHggc29s
+aWQgIA0KI2YxZjFmMTsiLz48L3RkPjwvdHI+PHRyPjx0ZCBhbGlnbj0ibGVmdCIgc3R5bGU9InBh
+ZGRpbmc6MTZweDsgIA0KZm9udC13ZWlnaHQ6NTAwOyIgY29sc3Bhbj0iMiI+PGg1IHN0eWxlPSJj
+b2xvcjojMjEyMTIxOyBmb250LXNpemU6MTZweDsgIA0KbGluZS1oZWlnaHQ6MjJweDsgbWFyZ2lu
+OjA7IGZvbnQtd2VpZ2h0Om5vcm1hbDsgIA0KZm9udDotYXBwbGUtc3lzdGVtLWJvZHk7Ij48YSBz
+dHlsZT0idGV4dC1kZWNvcmF0aW9uOm5vbmU7IGNvbG9yOiMyMTIxMjE7IiAgDQpocmVmPSJodHRw
+czovL3d3dy5nb29nbGUuY29tL2Fib3V0L2NhcmVlcnMvYXBwbGljYXRpb25zL2pvYnMvcmVzdWx0
+cy8xMzk4OTYwNDk0NTQ5ODE4MzAtc29mdHdhcmUtZW5naW5lZXJpbmctaW50ZXJuLC0yMDI2LSUy
+OHBvcnR1Z3Vlc2UsLWVuZ2xpc2glMjk/dXRtX2NhbXBhaWduPWpvYmFsZXJ0cyZhbXA7dXRtX2Nv
+bnRlbnQ9U29mdHdhcmUrRW5naW5lZXJpbmcrSW50ZXJuLCsyMDI2KyUyOFBvcnR1Z3Vlc2UsK0Vu
+Z2xpc2glMjkmYW1wO3V0bV9tZWRpdW09ZW1haWwmYW1wO3V0bV9zb3VyY2U9Z29vZ2xlam9icyZh
+bXA7c3JjPU9ubGluZS9EaXJlY3QvR29vZ2xlK0pvYnMrU2l0ZStBbGVydCtFbWFpbHMmYW1wO2Vt
+cGxveW1lbnRfdHlwZT1JTlRFUk4mYW1wO2NvbXBhbnk9Rml0Yml0JmFtcDtjb21wYW55PUdvb2ds
+ZSZhbXA7Y29tcGFueT1Zb3VUdWJlJmFtcDtzb3J0X2J5PWRhdGUiPjx1PlNvZnR3YXJlICANCkVu
+Z2luZWVyaW5nIEludGVybiwgMjAyNiAoUG9ydHVndWVzZSwgRW5nbGlzaCk8L3U+PC9hPjwvaDU+
+PHNwYW4gIA0Kc3R5bGU9ImNvbG9yOiM3NTc1NzU7IGZvbnQtc2l6ZToxNHB4OyBmb250LXdlaWdo
+dDo0MDA7IGxpbmUtaGVpZ2h0OjIwcHg7ICANCmZvbnQ6LWFwcGxlLXN5c3RlbS1ib2R5OyI+R29v
+Z2xlJm5ic3A7Jm5kYXNoOyZuYnNwO011bHRpcGxlIFNpdGVzPGJyPjQgZGF5cyAgDQphZ288L3Nw
+YW4+PHNwYW4gc3R5bGU9ImNvbG9yOiMyMTIxMjE7IGZvbnQtc2l6ZToxNHB4OyBmb250LXdlaWdo
+dDo1MDA7ICANCmxpbmUtaGVpZ2h0OjIwcHg7IGZvbnQ6LWFwcGxlLXN5c3RlbS1ib2R5OyI+PHVs
+Pg0KPGxpPkR1ZSB0byBsb2NhbCBjb21wbGlhbmNlIHJlcXVpcmVtZW50cywgYXBwbGljYW50cyBt
+dXN0IGJlIGN1cnJlbnRseSAgDQpwdXJzdWluZyBhIEJhY2hlbG9yJiMzOTtzIGluIENvbXB1dGVy
+IFNjaWVuY2Ugb3IgcmVsYXRlZCB0ZWNobmljYWwgZmllbGQgYXQgIA0KYSB1bml2ZXJzaXR5IGlu
+IEJyYXppbCB3aXRoIGFuIGV4cGVjdGVkIGdyYWR1YXRpb24gZGF0ZSBiZXR3ZWVuIERlY2VtYmVy
+ICANCjIwMjYgYW5kIEZlYnJ1YXJ5IDIwMjcuPC9saT4NCjxsaT5FeHBlcmllbmNlIHdyaXRpbmcg
+Y29kZSBmaXhlcyBhbmQgcHJvZ3JhbW1pbmcgaW4gb25lIG9yIG1vcmUgb2YgdGhlICANCmZvbGxv
+d2luZyBsYW5ndWFnZXM6IEMsIEMrKywgSmF2YSwgSmF2YVNjcmlwdCwgUHl0aG9uLCBHb2xhbmcs
+IERhcnQgb3IgIA0KS290bGluLjwvbGk+DQo8bGk+QWJpbGl0eSB0byBjb21tdW5pY2F0ZSBpbiBQ
+b3J0dWd1ZXNlIGFuZCBFbmdsaXNoIGZsdWVudGx5IHRvIGVuZ2FnZSAgDQp3aXRoIGludGVybmFs
+IHByb2plY3Qgc3Rha2Vob2xkZXJzLjwvbGk+DQo8L3VsPjwvc3Bhbj48L3RkPjwvdHI+PHRyPjx0
+ZCBjb2xzcGFuPSIzIiBzdHlsZT0idGV4dC1hbGlnbjpjZW50ZXI7Ij48aHIgIA0Kc3R5bGU9Indp
+ZHRoOjkwJTsgYm9yZGVyOjA7IGJvcmRlci1ib3R0b206MXB4IHNvbGlkICANCiNmMWYxZjE7Ii8+
+PC90ZD48L3RyPjx0cj48dGQgYWxpZ249ImxlZnQiIHN0eWxlPSJwYWRkaW5nOjE2cHg7ICANCmZv
+bnQtd2VpZ2h0OjUwMDsiIGNvbHNwYW49IjIiPjxoNSBzdHlsZT0iY29sb3I6IzIxMjEyMTsgZm9u
+dC1zaXplOjE2cHg7ICANCmxpbmUtaGVpZ2h0OjIycHg7IG1hcmdpbjowOyBmb250LXdlaWdodDpu
+b3JtYWw7ICANCmZvbnQ6LWFwcGxlLXN5c3RlbS1ib2R5OyI+PGEgc3R5bGU9InRleHQtZGVjb3Jh
+dGlvbjpub25lOyBjb2xvcjojMjEyMTIxOyIgIA0KaHJlZj0iaHR0cHM6Ly93d3cuZ29vZ2xlLmNv
+bS9hYm91dC9jYXJlZXJzL2FwcGxpY2F0aW9ucy9qb2JzL3Jlc3VsdHMvMTM0MjU1NTU0ODA0NDkw
+OTUwLXNvZnR3YXJlLWVuZ2luZWVyaW5nLWludGVybiwtMjAyNi0lMjhzcGFuaXNoLC1lbmdsaXNo
+JTI5P3V0bV9jYW1wYWlnbj1qb2JhbGVydHMmYW1wO3V0bV9jb250ZW50PVNvZnR3YXJlK0VuZ2lu
+ZWVyaW5nK0ludGVybiwrMjAyNislMjhTcGFuaXNoLCtFbmdsaXNoJTI5JmFtcDt1dG1fbWVkaXVt
+PWVtYWlsJmFtcDt1dG1fc291cmNlPWdvb2dsZWpvYnMmYW1wO3NyYz1PbmxpbmUvRGlyZWN0L0dv
+b2dsZStKb2JzK1NpdGUrQWxlcnQrRW1haWxzJmFtcDtlbXBsb3ltZW50X3R5cGU9SU5URVJOJmFt
+cDtjb21wYW55PUZpdGJpdCZhbXA7Y29tcGFueT1Hb29nbGUmYW1wO2NvbXBhbnk9WW91VHViZSZh
+bXA7c29ydF9ieT1kYXRlIj48dT5Tb2Z0d2FyZSAgDQpFbmdpbmVlcmluZyBJbnRlcm4sIDIwMjYg
+KFNwYW5pc2gsIEVuZ2xpc2gpPC91PjwvYT48L2g1PjxzcGFuICANCnN0eWxlPSJjb2xvcjojNzU3
+NTc1OyBmb250LXNpemU6MTRweDsgZm9udC13ZWlnaHQ6NDAwOyBsaW5lLWhlaWdodDoyMHB4OyAg
+DQpmb250Oi1hcHBsZS1zeXN0ZW0tYm9keTsiPkdvb2dsZSZuYnNwOyZuZGFzaDsmbmJzcDtNZXhp
+Y28gQ2l0eTxicj40IGRheXMgIA0KYWdvPC9zcGFuPjxzcGFuIHN0eWxlPSJjb2xvcjojMjEyMTIx
+OyBmb250LXNpemU6MTRweDsgZm9udC13ZWlnaHQ6NTAwOyAgDQpsaW5lLWhlaWdodDoyMHB4OyBm
+b250Oi1hcHBsZS1zeXN0ZW0tYm9keTsiPjx1bD4NCjxsaT5EdWUgdG8gbG9jYWwgY29tcGxpYW5j
+ZSByZXF1aXJlbWVudHMsIGFwcGxpY2FudHMgbXVzdCBiZSBjdXJyZW50bHkgIA0KcHVyc3Vpbmcg
+YSBCYWNoZWxvciYjMzk7cyBpbiBDb21wdXRlciBTY2llbmNlIG9yIHJlbGF0ZWQgdGVjaG5pY2Fs
+IGZpZWxkIGF0ICANCmEgdW5pdmVyc2l0eSBpbiBNZXhpY28gd2l0aCBhbiBleHBlY3RlZCBncmFk
+dWF0aW9uIGRhdGUgIGJldHdlZW4gRGVjZW1iZXIgIA0KMjAyNiBhbmQgRmVicnVhcnkgMjAyNy48
+L2xpPg0KPGxpPkV4cGVyaWVuY2Ugd3JpdGluZyBjb2RlIGZpeGVzIGFuZCBwcm9ncmFtbWluZyBp
+biBvbmUgb3IgbW9yZSBvZiB0aGUgIA0KZm9sbG93aW5nIGxhbmd1YWdlczogQywgQysrLCBKYXZh
+LCBKYXZhU2NyaXB0LCBQeXRob24sIEdvbGFuZywgRGFydCBvciAgDQpLb3RsaW4uPC9saT4NCjxs
+aT5BYmlsaXR5IHRvIGNvbW11bmljYXRlIGluIFNwYW5pc2ggYW5kIEVuZ2xpc2ggZmx1ZW50bHkg
+dG8gZW5nYWdlIHdpdGggIA0KaW50ZXJuYWwgcHJvamVjdCBzdGFrZWhvbGRlcnMuPC9saT4NCjwv
+dWw+PC9zcGFuPjwvdGQ+PC90cj48L3RhYmxlPjx0cj48dGQgYWxpZ249ImNlbnRlciIgIA0Kc3R5
+bGU9InRleHQtYWxpZ246Y2VudGVyOyBwYWRkaW5nLXRvcDoxMnB4OyI+PHRhYmxlIGJvcmRlcj0i
+MCIgIA0KY2VsbHBhZGRpbmc9IjAiIGNlbGxzcGFjaW5nPSIwIiBzdHlsZT0ibGluZS1oZWlnaHQ6
+MThweDsgYm9yZGVyLXNwYWNpbmc6MDsgIA0Kd2lkdGg6MTAwJTsiIHJvbGU9InByZXNlbnRhdGlv
+biI+PHRyPjx0ZCBhbGlnbj0iY2VudGVyIiAgDQpzdHlsZT0idmVydGljYWwtYWxpZ246dG9wOyBw
+YWRkaW5nOjA7Ij48YSAgDQpocmVmPSJodHRwczovL3d3dy5nb29nbGUuY29tL2Fib3V0L2NhcmVl
+cnMvYXBwbGljYXRpb25zP3V0bV9jYW1wYWlnbj1qb2JhbGVydHMmYW1wO3V0bV9jb250ZW50PWhv
+bWVfbGluayZhbXA7dXRtX21lZGl1bT1lbWFpbCZhbXA7dXRtX3NvdXJjZT1nb29nbGVqb2JzJmFt
+cDtzcmM9T25saW5lL0RpcmVjdC9Hb29nbGUrSm9icytTaXRlK0FsZXJ0K0VtYWlscyIgIA0Kc3R5
+bGU9InRleHQtZGVjb3JhdGlvbjpub25lO2NvbG9yOiM2ZjllZjIiPjxpbWcgYWx0PSJHb29nbGUg
+Q2FyZWVycyIgIA0KaGVpZ2h0PSIyNCIgd2lkdGg9IjE1NiIgIA0Kc3JjPSJodHRwczovL2NhcmVl
+cnMuZ29vZ2xlLmNvbS9qb2JzL2Rpc3QvaW1nL2VtYWlsL2dvb2dsZV9lbi5wbmciLz48L2E+PC90
+ZD48L3RyPjwvdGFibGU+PC90ZD48L3RyPjx0cj48dGQgIA0KYWxpZ249ImNlbnRlciIgc3R5bGU9
+InRleHQtYWxpZ246Y2VudGVyOyBjb2xvcjogIzQwNDA0MDsiPjx0YWJsZSBib3JkZXI9IjAiICAN
+CmNlbGxwYWRkaW5nPSIwIiBjZWxsc3BhY2luZz0iMCIgc3R5bGU9ImxpbmUtaGVpZ2h0OjE4cHg7
+IGJvcmRlci1zcGFjaW5nOjA7ICANCndpZHRoOjEwMCU7Ij48dHI+PHRkIGFsaWduPSJjZW50ZXIi
+IHN0eWxlPSJ2ZXJ0aWNhbC1hbGlnbjp0b3A7IHBhZGRpbmc6MDsgIA0KZm9udDotYXBwbGUtc3lz
+dGVtLWJvZHk7Ij48c3Bhbj5Zb3UncmUgcmVjZWl2aW5nIHRoaXMgZW1haWwgYmVjYXVzZSB5b3Ug
+IA0Kc2lnbmVkIHVwIGZvciBhIEdvb2dsZSBDYXJlZXJzICANCmFsZXJ0Ljwvc3Bhbj48L3RkPjwv
+dHI+PC90YWJsZT48L3RkPjwvdHI+PHRyPjx0ZCBhbGlnbj0iY2VudGVyIiAgDQpzdHlsZT0idGV4
+dC1hbGlnbjpjZW50ZXI7IHBhZGRpbmctYm90dG9tOjEycHg7Ij48dGFibGUgYm9yZGVyPSIwIiAg
+DQpjZWxscGFkZGluZz0iMCIgY2VsbHNwYWNpbmc9IjAiIHN0eWxlPSJsaW5lLWhlaWdodDoxOHB4
+OyBib3JkZXItc3BhY2luZzowOyAgDQp3aWR0aDoxMDAlOyIgcm9sZT0icHJlc2VudGF0aW9uIj48
+dHI+PHRkIGFsaWduPSJjZW50ZXIiICANCnN0eWxlPSJ2ZXJ0aWNhbC1hbGlnbjp0b3A7IHBhZGRp
+bmctdG9wOjVweDsiPjxhICANCmhyZWY9Imh0dHBzOi8vd3d3Lmdvb2dsZS5jb20vYWJvdXQvY2Fy
+ZWVycy9hcHBsaWNhdGlvbnMvam9icy9hbGVydHM/dXRtX2NhbXBhaWduPWpvYmFsZXJ0cyZhbXA7
+dXRtX2NvbnRlbnQ9bWFuYWdlX2xpbmsmYW1wO3V0bV9tZWRpdW09ZW1haWwmYW1wO3V0bV9zb3Vy
+Y2U9Z29vZ2xlam9icyZhbXA7c3JjPU9ubGluZS9EaXJlY3QvR29vZ2xlK0pvYnMrU2l0ZStBbGVy
+dCtFbWFpbHMiICANCnN0eWxlPSJ0ZXh0LWRlY29yYXRpb246bm9uZTsgdGV4dC10cmFuc2Zvcm06
+dXBwZXJjYXNlOyBjb2xvcjojMTk2N0QyOyAgDQpmb250Oi1hcHBsZS1zeXN0ZW0tYm9keTsiPk1h
+bmFnZSAgDQphbGVydHM8L2E+PC90ZD48L3RyPjwvdGFibGU+PC90ZD48L3RyPjwvdGFibGU+DQo=
+--000000000000e2bcd3064f30f3d0
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<table border=3D0 cellpadding=3D0 cellspacing=3D0 style=3D"background-color=
+:#f1f1f1; width:100%; height:100%; font-family:sans-serif; padding-top:36px=
+; border-spacing:0;" role=3Dpresentation><table border=3D0 cellpadding=3D0 =
+cellspacing=3D0 align=3Dcenter style=3D"background-color:#fff; line-height:=
+18px; border-spacing:0; width:90%; max-width:680px; min-width:280px;" role=
+=3Dpresentation><tr style=3Dbackground-color:#1A73E8;><td align=3Dleft styl=
+e=3D"background-color:#1A73E8; padding:12px 0 12px 16px; width:36px;"><img =
+alt=3D"" height=3D24 width=3D24 src=3Dhttps://careers.google.com/jobs/dist/=
+img/email/search-white.png /></td><td align=3Dleft style=3D"font-style:ital=
+ic; font-size:14px; color:white; background-color:#1A73E8;"><h4><span style=
+=3D"font-style:italic; font-size:14px; font-weight:normal; color:white; fon=
+t:-apple-system-body;">For your search <span style=3D"font-weight: bold; fo=
+nt-size:14px; font:-apple-system-body;">No keywords</span></span></h4></td>=
+<td align=3Dright style=3D"padding:12px 16px 12px 0; min-width:96px; backgr=
+ound-color:#1A73E8"><a href=3Dhttps://www.google.com/about/careers/applicat=
+ions/jobs/results?employment_type=3DINTERN&amp;company=3DFitbit&amp;company=
+=3DGoogle&amp;company=3DYouTube&amp;sort_by=3Ddate&amp;utm_campaign=3Djobal=
+erts&amp;utm_content=3Drerun_search&amp;utm_medium=3Demail&amp;utm_source=
+=3Dgooglejobs&amp;src=3DOnline/Direct/Google+Jobs+Site+Alert+Emails style=
+=3Dtext-decoration:none;><span style=3D"font-style:normal; font-size:14px; =
+font-weight:500; font:-apple-system-body; color:white; text-transform:upper=
+case; word-break:keep-all;">View more</span></a></td></tr><tr><td align=3Dl=
+eft style=3D"padding:16px; font-weight:500;" colspan=3D2><h5 style=3D"color=
+:#212121; font-size:16px; line-height:22px; margin:0; font-weight:normal; f=
+ont:-apple-system-body;"><a style=3D"text-decoration:none; color:#212121;" =
+href=3D"https://www.google.com/about/careers/applications/jobs/results/1135=
+56945616413382-recruiting-specialist,-people-operations,-greach-program-for=
+-people-with-disabilities-%28=E6=AE=8B=E9=9A=9C=E4=BA=BA=E5=A3=AB=E5=B2=97=
+=E4=BD=8D%29-%28english,-mandarin%29?utm_campaign=3Djobalerts&amp;utm_conte=
+nt=3DRecruiting+Specialist,+People+Operations,+gReach+Program+for+People+wi=
+th+Disabilities+%28%E6%AE%8B%E9%9A%9C%E4%BA%BA%E5%A3%AB%E5%B2%97%E4%BD%8D%2=
+9+%28English,+Mandarin%29&amp;utm_medium=3Demail&amp;utm_source=3Dgooglejob=
+s&amp;src=3DOnline/Direct/Google+Jobs+Site+Alert+Emails&amp;employment_type=
+=3DINTERN&amp;company=3DFitbit&amp;company=3DGoogle&amp;company=3DYouTube&a=
+mp;sort_by=3Ddate"><u>Recruiting Specialist, People Operations, gReach Prog=
+ram for People with Disabilities (=E6=AE=8B=E9=9A=9C=E4=BA=BA=E5=A3=AB=E5=
+=B2=97=E4=BD=8D) (English, Mandarin)</u></a></h5><span style=3D"color:#7575=
+75; font-size:14px; font-weight:400; line-height:20px; font:-apple-system-b=
+ody;">Google&nbsp;&ndash;&nbsp;Shanghai<br>2 days ago</span><span style=3D"=
+color:#212121; font-size:14px; font-weight:500; line-height:20px; font:-app=
+le-system-body;"><ul>
+<li>Bachelor&#39;s degree or equivalent practical experience.</li>
+<li>Experience working in human resource, recruitment, business or stakehol=
+der management.</li>
+<li>Ability to communicate in English and Mandarin fluently to collaborate =
+with colleagues and complete tasks and projects.</li>
+</ul></span></td></tr><tr><td colspan=3D3 style=3Dtext-align:center;><hr st=
+yle=3D"width:90%; border:0; border-bottom:1px solid #f1f1f1;" /></td></tr><=
+tr><td align=3Dleft style=3D"padding:16px; font-weight:500;" colspan=3D2><h=
+5 style=3D"color:#212121; font-size:16px; line-height:22px; margin:0; font-=
+weight:normal; font:-apple-system-body;"><a style=3D"text-decoration:none; =
+color:#212121;" href=3Dhttps://www.google.com/about/careers/applications/jo=
+bs/results/138972820464902854-software-engineering-intern,-people-with-disa=
+bilities,-2026-%28portuguese,-english%29?utm_campaign=3Djobalerts&amp;utm_c=
+ontent=3DSoftware+Engineering+Intern,+People+with+Disabilities,+2026+%28Por=
+tuguese,+English%29&amp;utm_medium=3Demail&amp;utm_source=3Dgooglejobs&amp;=
+src=3DOnline/Direct/Google+Jobs+Site+Alert+Emails&amp;employment_type=3DINT=
+ERN&amp;company=3DFitbit&amp;company=3DGoogle&amp;company=3DYouTube&amp;sor=
+t_by=3Ddate><u>Software Engineering Intern, People with Disabilities, 2026 =
+(Portuguese, English)</u></a></h5><span style=3D"color:#757575; font-size:1=
+4px; font-weight:400; line-height:20px; font:-apple-system-body;">Google&nb=
+sp;&ndash;&nbsp;Multiple Sites<br>2 days ago</span><span style=3D"color:#21=
+2121; font-size:14px; font-weight:500; line-height:20px; font:-apple-system=
+-body;"><ul>
+<li>Due to local compliance requirements, applicants must be currently purs=
+uing a Bachelor&#39;s in Computer Science or related technical field at a u=
+niversity in Brazil with an expected graduation date between December 2026 =
+and February 2027.</li>
+<li>Experience writing code fixes and programming in one or more of the fol=
+lowing languages: C, C++, Java, JavaScript, Python, Golang, Dart or Kotlin.=
+</li>
+<li>Ability to communicate in Portuguese and English fluently to engage wit=
+h internal project stakeholders.</li>
+</ul></span></td></tr><tr><td colspan=3D3 style=3Dtext-align:center;><hr st=
+yle=3D"width:90%; border:0; border-bottom:1px solid #f1f1f1;" /></td></tr><=
+tr><td align=3Dleft style=3D"padding:16px; font-weight:500;" colspan=3D2><h=
+5 style=3D"color:#212121; font-size:16px; line-height:22px; margin:0; font-=
+weight:normal; font:-apple-system-body;"><a style=3D"text-decoration:none; =
+color:#212121;" href=3Dhttps://www.google.com/about/careers/applications/jo=
+bs/results/137863361692869318-software-engineering-phd-intern,-summer-2026?=
+utm_campaign=3Djobalerts&amp;utm_content=3DSoftware+Engineering+PhD+Intern,=
++Summer+2026&amp;utm_medium=3Demail&amp;utm_source=3Dgooglejobs&amp;src=3DO=
+nline/Direct/Google+Jobs+Site+Alert+Emails&amp;employment_type=3DINTERN&amp=
+;company=3DFitbit&amp;company=3DGoogle&amp;company=3DYouTube&amp;sort_by=3D=
+date><u>Software Engineering PhD Intern, Summer 2026</u></a></h5><span styl=
+e=3D"color:#757575; font-size:14px; font-weight:400; line-height:20px; font=
+:-apple-system-body;">Google&nbsp;&ndash;&nbsp;Multiple Sites<br>3 days ago=
+</span><span style=3D"color:#212121; font-size:14px; font-weight:500; line-=
+height:20px; font:-apple-system-body;"><ul>
+<li>Pursuing a PhD program with a focus in software development or other te=
+chnical related field.</li>
+<li>Experience with one or more general purpose programming languages (e.g.=
+, Java, C/C++, Python, JavaScript, Go, etc.).<br></li>
+<li>Experience working in Unix/Linux environments.<br></li>
+<li>Experience with data structures, algorithms, and software design.<br></=
+li>
+</ul></span></td></tr><tr><td colspan=3D3 style=3Dtext-align:center;><hr st=
+yle=3D"width:90%; border:0; border-bottom:1px solid #f1f1f1;" /></td></tr><=
+tr><td align=3Dleft style=3D"padding:16px; font-weight:500;" colspan=3D2><h=
+5 style=3D"color:#212121; font-size:16px; line-height:22px; margin:0; font-=
+weight:normal; font:-apple-system-body;"><a style=3D"text-decoration:none; =
+color:#212121;" href=3Dhttps://www.google.com/about/careers/applications/jo=
+bs/results/78879819902657222-user-experience-design-intern,-2026?utm_campai=
+gn=3Djobalerts&amp;utm_content=3DUser+Experience+Design+Intern,+2026&amp;ut=
+m_medium=3Demail&amp;utm_source=3Dgooglejobs&amp;src=3DOnline/Direct/Google=
++Jobs+Site+Alert+Emails&amp;employment_type=3DINTERN&amp;company=3DFitbit&a=
+mp;company=3DGoogle&amp;company=3DYouTube&amp;sort_by=3Ddate><u>User Experi=
+ence Design Intern, 2026</u></a></h5><span style=3D"color:#757575; font-siz=
+e:14px; font-weight:400; line-height:20px; font:-apple-system-body;">Google=
+&nbsp;&ndash;&nbsp;S=C3=A3o Paulo<br>4 days ago</span><span style=3D"color:=
+#212121; font-size:14px; font-weight:500; line-height:20px; font:-apple-sys=
+tem-body;"><ul>
+<li>Due to local compliance requirements, applicants must be currently purs=
+uing a Bachelor&#39;s in Design or a related technical field at a universit=
+y in Brazil with an expected graduation date between December 2026 and Febr=
+uary 2027.</li>
+<li>Experience with Figma.</li>
+<li>Relevant internship, work, or project experience applied into product d=
+esigns and design practices.</li>
+<li>A portfolio that demonstrates design projects.</li>
+<li>Ability to communicate in Portuguese and English fluently, to engage wi=
+th internal project stakeholders.</li>
+</ul></span></td></tr><tr><td colspan=3D3 style=3Dtext-align:center;><hr st=
+yle=3D"width:90%; border:0; border-bottom:1px solid #f1f1f1;" /></td></tr><=
+tr><td align=3Dleft style=3D"padding:16px; font-weight:500;" colspan=3D2><h=
+5 style=3D"color:#212121; font-size:16px; line-height:22px; margin:0; font-=
+weight:normal; font:-apple-system-body;"><a style=3D"text-decoration:none; =
+color:#212121;" href=3Dhttps://www.google.com/about/careers/applications/jo=
+bs/results/139896049454981830-software-engineering-intern,-2026-%28portugue=
+se,-english%29?utm_campaign=3Djobalerts&amp;utm_content=3DSoftware+Engineer=
+ing+Intern,+2026+%28Portuguese,+English%29&amp;utm_medium=3Demail&amp;utm_s=
+ource=3Dgooglejobs&amp;src=3DOnline/Direct/Google+Jobs+Site+Alert+Emails&am=
+p;employment_type=3DINTERN&amp;company=3DFitbit&amp;company=3DGoogle&amp;co=
+mpany=3DYouTube&amp;sort_by=3Ddate><u>Software Engineering Intern, 2026 (Po=
+rtuguese, English)</u></a></h5><span style=3D"color:#757575; font-size:14px=
+; font-weight:400; line-height:20px; font:-apple-system-body;">Google&nbsp;=
+&ndash;&nbsp;Multiple Sites<br>4 days ago</span><span style=3D"color:#21212=
+1; font-size:14px; font-weight:500; line-height:20px; font:-apple-system-bo=
+dy;"><ul>
+<li>Due to local compliance requirements, applicants must be currently purs=
+uing a Bachelor&#39;s in Computer Science or related technical field at a u=
+niversity in Brazil with an expected graduation date between December 2026 =
+and February 2027.</li>
+<li>Experience writing code fixes and programming in one or more of the fol=
+lowing languages: C, C++, Java, JavaScript, Python, Golang, Dart or Kotlin.=
+</li>
+<li>Ability to communicate in Portuguese and English fluently to engage wit=
+h internal project stakeholders.</li>
+</ul></span></td></tr><tr><td colspan=3D3 style=3Dtext-align:center;><hr st=
+yle=3D"width:90%; border:0; border-bottom:1px solid #f1f1f1;" /></td></tr><=
+tr><td align=3Dleft style=3D"padding:16px; font-weight:500;" colspan=3D2><h=
+5 style=3D"color:#212121; font-size:16px; line-height:22px; margin:0; font-=
+weight:normal; font:-apple-system-body;"><a style=3D"text-decoration:none; =
+color:#212121;" href=3Dhttps://www.google.com/about/careers/applications/jo=
+bs/results/134255554804490950-software-engineering-intern,-2026-%28spanish,=
+-english%29?utm_campaign=3Djobalerts&amp;utm_content=3DSoftware+Engineering=
++Intern,+2026+%28Spanish,+English%29&amp;utm_medium=3Demail&amp;utm_source=
+=3Dgooglejobs&amp;src=3DOnline/Direct/Google+Jobs+Site+Alert+Emails&amp;emp=
+loyment_type=3DINTERN&amp;company=3DFitbit&amp;company=3DGoogle&amp;company=
+=3DYouTube&amp;sort_by=3Ddate><u>Software Engineering Intern, 2026 (Spanish=
+, English)</u></a></h5><span style=3D"color:#757575; font-size:14px; font-w=
+eight:400; line-height:20px; font:-apple-system-body;">Google&nbsp;&ndash;&=
+nbsp;Mexico City<br>4 days ago</span><span style=3D"color:#212121; font-siz=
+e:14px; font-weight:500; line-height:20px; font:-apple-system-body;"><ul>
+<li>Due to local compliance requirements, applicants must be currently purs=
+uing a Bachelor&#39;s in Computer Science or related technical field at a u=
+niversity in Mexico with an expected graduation date  between December 2026=
+ and February 2027.</li>
+<li>Experience writing code fixes and programming in one or more of the fol=
+lowing languages: C, C++, Java, JavaScript, Python, Golang, Dart or Kotlin.=
+</li>
+<li>Ability to communicate in Spanish and English fluently to engage with i=
+nternal project stakeholders.</li>
+</ul></span></td></tr></table><tr><td align=3Dcenter style=3D"text-align:ce=
+nter; padding-top:12px;"><table border=3D0 cellpadding=3D0 cellspacing=3D0 =
+style=3D"line-height:18px; border-spacing:0; width:100%;" role=3Dpresentati=
+on><tr><td align=3Dcenter style=3D"vertical-align:top; padding:0;"><a href=
+=3Dhttps://www.google.com/about/careers/applications?utm_campaign=3Djobaler=
+ts&amp;utm_content=3Dhome_link&amp;utm_medium=3Demail&amp;utm_source=3Dgoog=
+lejobs&amp;src=3DOnline/Direct/Google+Jobs+Site+Alert+Emails style=3Dtext-d=
+ecoration:none;color:#6f9ef2><img alt=3D"Google Careers" height=3D24 width=
+=3D156 src=3Dhttps://careers.google.com/jobs/dist/img/email/google_en.png /=
+></a></td></tr></table></td></tr><tr><td align=3Dcenter style=3D"text-align=
+:center; color: #404040;"><table border=3D0 cellpadding=3D0 cellspacing=3D0=
+ style=3D"line-height:18px; border-spacing:0; width:100%;"><tr><td align=3D=
+center style=3D"vertical-align:top; padding:0; font:-apple-system-body;"><s=
+pan>You're receiving this email because you signed up for a Google Careers =
+alert.</span></td></tr></table></td></tr><tr><td align=3Dcenter style=3D"te=
+xt-align:center; padding-bottom:12px;"><table border=3D0 cellpadding=3D0 ce=
+llspacing=3D0 style=3D"line-height:18px; border-spacing:0; width:100%;" rol=
+e=3Dpresentation><tr><td align=3Dcenter style=3D"vertical-align:top; paddin=
+g-top:5px;"><a href=3Dhttps://www.google.com/about/careers/applications/job=
+s/alerts?utm_campaign=3Djobalerts&amp;utm_content=3Dmanage_link&amp;utm_med=
+ium=3Demail&amp;utm_source=3Dgooglejobs&amp;src=3DOnline/Direct/Google+Jobs=
++Site+Alert+Emails style=3D"text-decoration:none; text-transform:uppercase;=
+ color:#1967D2; font:-apple-system-body;">Manage alerts</a></td></tr></tabl=
+e></td></tr></table><img src=3D"https://notifications.googleapis.com/email/=
+t/AFG8qyUG2I8ox5WkBHgpQqImQBaEh6IyDkQDtLshnfecE51v-56WpvmcwvzEoybR6M3lSbYko=
+0E5PJApcXqyr8c7vFqAtEQJMpRZzDo_SHoGnnR2YJQN2EERQWP5ejhI_Z8U15-KlcNxFS91FqCf=
+Ejo7h3gJFdtUEx1iNVaJE4_Ro-y0HkXIrDGSSBrBgl4czxUOz53alLUzQkTOk2vew8MKQ3wupzW=
+XzZFXgxtgxsxncjX5JSsSzuFcIYdIrnpbTyKtPSuIw42ecqr-F2QNEa4JeppQUE6LWrD3mhlA6h=
+10PDfcfyA1h6St_qPMgX6amMEE4LhRd0ufD8KqBAmSlRZeN9o6uYgrS_pJ0MEA9jBLUZVtX219S=
+pWbNBDg7T9A6luT4WMjfKKpAX4iB-teqlGJRhkWTIkuSQgFpSrkWExNQinAqvUP38oxevPeQwFj=
+oLK3j0CX88UzeZo/a.gif" width=3D1 height=3D1>
+--000000000000e2bcd3064f30f3d0--

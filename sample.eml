@@ -1,0 +1,30 @@
+Received: by 10.28.200.5 with SMTP id f5csp123456rwh;
+        Sat, 12 Apr 2026 03:15:22 -0700 (PDT)
+Received: from mail-out.example.com (mail-out.example.com [209.85.220.41])
+        by mx.google.com with ESMTPS id abc123.456.2026.04.12.03.15.21;
+        Sat, 12 Apr 2026 03:15:21 -0700 (PDT)
+Received: from internal.local (unknown [192.168.1.50])
+        by mail-out.example.com (Postfix) with ESMTP id DEF789;
+        Sat, 12 Apr 2026 06:15:20 -0400 (EDT)
+Received: from [10.0.0.5] (helo=workstation.local)
+        by internal.local with SMTP id 1234;
+        Sat, 12 Apr 2026 06:15:19 -0400 (EDT)
+Authentication-Results: mx.google.com;
+       dkim=fail header.i=@example.com;
+       spf=softfail (google.com: domain of sender@example.com) smtp.mailfrom=sender@example.com;
+       dmarc=fail (p=REJECT) header.from=example.com
+Message-ID: <deadbeef@example.com>
+Date: Sat, 12 Apr 2026 06:15:18 -0400
+From: attacker@example.com
+To: victim@gmail.com
+Subject: URGENT - Verify your account immediately
+Return-Path: <bounce@shady-domain.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="UTF-8"
+
+Dear User,
+
+Your account has been compromised. Click here to verify your identity immediately.
+
+Best regards,
+Totally Legitimate Support Team
