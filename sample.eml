@@ -20,11 +20,42 @@ To: victim@gmail.com
 Subject: URGENT - Verify your account immediately
 Return-Path: <bounce@shady-domain.com>
 MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="BOUNDARY001"
+
+--BOUNDARY001
+Content-Type: multipart/alternative; boundary="BOUNDARY002"
+
+--BOUNDARY002
 Content-Type: text/plain; charset="UTF-8"
 
 Dear User,
 
-Your account has been compromised. Click here to verify your identity immediately.
+Your account has been compromised. Click here to verify your identity:
+https://totallylegit-support.com/verify?id=12345
 
 Best regards,
-Totally Legitimate Support Team
+Support Team
+
+--BOUNDARY002
+Content-Type: text/html; charset="UTF-8"
+
+<html>
+<body>
+<p>Dear User,</p>
+<p>Your account has been compromised. Click the link below to verify:</p>
+<p><a href="https://evil-phish.com/steal-creds">https://paypal.com/secure/verify</a></p>
+<p><a href="https://totallylegit-support.com/verify?id=12345">Verify Now</a></p>
+<p>Best regards,<br>Support Team</p>
+</body>
+</html>
+
+--BOUNDARY002--
+
+--BOUNDARY001
+Content-Type: application/vnd.ms-excel.sheet.macroEnabled.12
+Content-Disposition: attachment; filename="invoice_details.xlsm"
+Content-Transfer-Encoding: base64
+
+UEsDBBQAAAAIAGFakeBase64ContentHereForTestingPurposesOnlyAAAAAAAA==
+
+--BOUNDARY001--

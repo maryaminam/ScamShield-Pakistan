@@ -1,12 +1,18 @@
-"""Email Forensic Analyzer - header parsing, metadata extraction, and routing analysis."""
+"""Email Forensic Analyzer - header parsing, metadata extraction, routing,
+authentication, geolocation, URL/attachment scanning, and domain reputation."""
 
 import email
 import email.policy
+import hashlib
 import ipaddress
 import re
+from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 
 import requests
+import whois
+from bs4 import BeautifulSoup
 
 _GEOLOCATION_API = "http://ip-api.com/json/{ip}?fields=status,message,country,city,isp,as"
 _API_TIMEOUT = 5  # seconds
@@ -32,6 +38,19 @@ _RECEIVED_SPF_RE = re.compile(r"^\s*(\w+)", re.IGNORECASE)
 
 # Statuses that indicate a problem.
 _SUSPICIOUS_STATUSES = {"fail", "softfail"}
+
+# URL extraction from plain text bodies.
+_URL_RE = re.compile(r"https?://[^\s<>\"')\]]+", re.IGNORECASE)
+
+# File extensions commonly abused in phishing attachments.
+_RISKY_EXTENSIONS = {
+    ".exe", ".scr", ".js", ".vbs", ".bat", ".cmd", ".ps1", ".msi",
+    ".hta", ".wsf", ".com", ".pif", ".reg", ".docm", ".xlsm", ".pptm",
+    ".iso", ".img", ".zip", ".rar", ".7z", ".cab",
+}
+
+# Domain age threshold (days). Domains younger than this are flagged.
+_YOUNG_DOMAIN_DAYS = 30
 
 
 class EmailForensicAnalyzer:
@@ -274,6 +293,204 @@ class EmailForensicAnalyzer:
             "city": data.get("city"),
             "isp": data.get("isp"),
             "asn": data.get("as"),
+        }
+
+
+    # ------------------------------------------------------------------
+    # Step 5: URL & link extraction
+    # ------------------------------------------------------------------
+
+    def extract_urls(self) -> list[dict]:
+        """Extract all URLs from the email body and detect display/href mismatches.
+
+        For HTML bodies, each ``<a>`` tag is inspected: if the visible text
+        looks like a URL but points to a *different* domain, the link is
+        flagged as a mismatch (a common phishing trick).
+
+        Plain-text bodies are scanned with a regex fallback.
+
+        Returns:
+            A list of dicts, each containing:
+                - url         : the actual href / URL string
+                - display_text: visible anchor text (HTML only, else None)
+                - domain      : domain extracted from the URL
+                - mismatch    : True if display text domain != href domain
+        """
+        urls: list[dict] = []
+        seen: set[str] = set()
+
+        html_body: str | None = None
+        plain_body: str | None = None
+
+        # Walk MIME parts to find HTML and plain-text bodies.
+        if self.msg.is_multipart():
+            for part in self.msg.walk():
+                ct = part.get_content_type()
+                if ct == "text/html" and html_body is None:
+                    html_body = part.get_content()
+                elif ct == "text/plain" and plain_body is None:
+                    plain_body = part.get_content()
+        else:
+            ct = self.msg.get_content_type()
+            body = self.msg.get_content()
+            if ct == "text/html":
+                html_body = body
+            else:
+                plain_body = body
+
+        # Prefer HTML parsing — it gives us display-text mismatch detection.
+        if html_body:
+            soup = BeautifulSoup(html_body, "html.parser")
+            for tag in soup.find_all("a", href=True):
+                href = tag["href"].strip()
+                if not href.lower().startswith(("http://", "https://")):
+                    continue
+                if href in seen:
+                    continue
+                seen.add(href)
+
+                href_domain = urlparse(href).netloc.lower()
+                display = tag.get_text(strip=True)
+
+                # Check if display text itself looks like a URL with a
+                # different domain (e.g. text says paypal.com, href is evil.com).
+                mismatch = False
+                if display.startswith(("http://", "https://")):
+                    display_domain = urlparse(display).netloc.lower()
+                    if display_domain and display_domain != href_domain:
+                        mismatch = True
+
+                urls.append({
+                    "url": href,
+                    "display_text": display or None,
+                    "domain": href_domain,
+                    "mismatch": mismatch,
+                })
+
+            # Also grab URLs in plain text that aren't inside <a> tags.
+            visible_text = soup.get_text()
+            for match in _URL_RE.findall(visible_text):
+                if match not in seen:
+                    seen.add(match)
+                    urls.append({
+                        "url": match,
+                        "display_text": None,
+                        "domain": urlparse(match).netloc.lower(),
+                        "mismatch": False,
+                    })
+
+        elif plain_body:
+            for match in _URL_RE.findall(plain_body):
+                if match not in seen:
+                    seen.add(match)
+                    urls.append({
+                        "url": match,
+                        "display_text": None,
+                        "domain": urlparse(match).netloc.lower(),
+                        "mismatch": False,
+                    })
+
+        return urls
+
+    # ------------------------------------------------------------------
+    # Step 5: Attachment analysis
+    # ------------------------------------------------------------------
+
+    def extract_attachments(self) -> list[dict]:
+        """List all attachments with metadata and risk assessment.
+
+        Returns:
+            A list of dicts, each containing:
+                - filename  : original filename (or "unnamed")
+                - mime_type : Content-Type (e.g. "application/pdf")
+                - size      : size in bytes
+                - md5       : MD5 hex digest
+                - sha256    : SHA-256 hex digest
+                - risky     : True if the file extension is in _RISKY_EXTENSIONS
+        """
+        attachments: list[dict] = []
+
+        for part in self.msg.walk():
+            disposition = part.get_content_disposition()
+            if disposition not in ("attachment", "inline"):
+                continue
+
+            filename = part.get_filename() or "unnamed"
+            payload = part.get_payload(decode=True)
+            if payload is None:
+                continue
+
+            ext = Path(filename).suffix.lower()
+
+            attachments.append({
+                "filename": filename,
+                "mime_type": part.get_content_type(),
+                "size": len(payload),
+                "md5": hashlib.md5(payload).hexdigest(),
+                "sha256": hashlib.sha256(payload).hexdigest(),
+                "risky": ext in _RISKY_EXTENSIONS,
+            })
+
+        return attachments
+
+    # ------------------------------------------------------------------
+    # Step 5: Sender domain reputation (WHOIS age check)
+    # ------------------------------------------------------------------
+
+    def check_domain_reputation(self, domain: str | None = None) -> dict:
+        """WHOIS lookup on the sender domain to assess its age.
+
+        A domain registered very recently (< 30 days) is a strong phishing
+        indicator.
+
+        Args:
+            domain: Domain to check.  If ``None``, the domain is extracted
+                    from the ``From`` header automatically.
+
+        Returns:
+            A dict with keys:
+                - domain        : the domain that was checked
+                - registrar     : registrar name (or None)
+                - creation_date : registration date (ISO string or None)
+                - domain_age_days: age in days (int or None)
+                - is_young      : True if age < _YOUNG_DOMAIN_DAYS
+                - error         : present only on failure
+        """
+        if domain is None:
+            from_header = self.msg.get("From") or ""
+            # "Name <user@domain>" or plain "user@domain"
+            at_pos = from_header.rfind("@")
+            if at_pos == -1:
+                return {"domain": None, "error": "No domain in From header"}
+            domain = from_header[at_pos + 1 :].strip().rstrip(">").lower()
+
+        try:
+            w = whois.whois(domain)
+        except Exception as exc:
+            return {"domain": domain, "error": f"WHOIS lookup failed: {exc}"}
+
+        creation = w.creation_date
+        # Some registrars return a list of dates.
+        if isinstance(creation, list):
+            creation = creation[0]
+
+        age_days: int | None = None
+        is_young = False
+        creation_iso: str | None = None
+
+        if isinstance(creation, datetime):
+            creation_iso = creation.isoformat()
+            age_days = (datetime.now(timezone.utc) - creation.replace(
+                tzinfo=timezone.utc
+            )).days
+            is_young = age_days < _YOUNG_DOMAIN_DAYS
+
+        return {
+            "domain": domain,
+            "registrar": w.registrar,
+            "creation_date": creation_iso,
+            "domain_age_days": age_days,
+            "is_young": is_young,
         }
 
 

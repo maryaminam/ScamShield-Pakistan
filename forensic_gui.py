@@ -51,6 +51,9 @@ class ForensicGUI(ctk.CTk):
         self._last_auth: dict | None = None
         self._last_geo: list[tuple[str, dict]] | None = None
         self._last_orig_ip: str | None = None
+        self._last_urls: list[dict] | None = None
+        self._last_attachments: list[dict] | None = None
+        self._last_domain_rep: dict | None = None
 
         self._build_sidebar()
         self._build_main_area()
@@ -142,7 +145,10 @@ class ForensicGUI(ctk.CTk):
         )
         self._tabs.grid(row=1, column=0, sticky="nsew")
 
-        for name in ("Metadata", "Routing Path", "Authentication", "Geolocation"):
+        for name in (
+            "Metadata", "Routing Path", "Authentication",
+            "Geolocation", "URLs & Links", "Attachments",
+        ):
             self._tabs.add(name)
 
         self._tabs.set("Metadata")
@@ -152,6 +158,8 @@ class ForensicGUI(ctk.CTk):
         self._route_frame = self._scrollable_frame(self._tabs.tab("Routing Path"))
         self._auth_frame = self._scrollable_frame(self._tabs.tab("Authentication"))
         self._geo_frame = self._scrollable_frame(self._tabs.tab("Geolocation"))
+        self._url_frame = self._scrollable_frame(self._tabs.tab("URLs & Links"))
+        self._attach_frame = self._scrollable_frame(self._tabs.tab("Attachments"))
 
         # Placeholder
         self._placeholder = ctk.CTkLabel(
@@ -245,20 +253,31 @@ class ForensicGUI(ctk.CTk):
         self._last_auth = analyzer.check_authentication()
         self._last_orig_ip = analyzer.originating_ip
         self._last_geo = None  # Will be set once the API call finishes.
+        self._last_urls = analyzer.extract_urls()
+        self._last_attachments = analyzer.extract_attachments()
+        self._last_domain_rep = None  # Will be set once WHOIS finishes.
 
         self._populate_metadata(self._last_metadata)
         self._populate_routing(self._last_routing)
         self._populate_auth(self._last_auth)
+        self._populate_urls(self._last_urls)
+        self._populate_attachments(self._last_attachments)
         self._show_banner(self._last_auth)
 
-        # Geolocation runs in a background thread to keep the UI responsive.
+        # Geolocation + WHOIS run in background threads.
         self._show_geo_loading()
-        thread = threading.Thread(
+        threading.Thread(
             target=self._fetch_geo,
             args=(analyzer, self._last_orig_ip, self._last_routing),
             daemon=True,
-        )
-        thread.start()
+        ).start()
+
+        self._show_domain_loading()
+        threading.Thread(
+            target=self._fetch_domain_rep,
+            args=(analyzer,),
+            daemon=True,
+        ).start()
 
         self._tabs.set("Metadata")
 
@@ -285,6 +304,14 @@ class ForensicGUI(ctk.CTk):
             self._populate_geo(self._last_orig_ip, self._last_geo)
         else:
             self._show_geo_loading()
+        if self._last_urls is not None:
+            self._populate_urls(self._last_urls)
+        if self._last_attachments is not None:
+            self._populate_attachments(self._last_attachments)
+        if self._last_domain_rep is not None:
+            self._populate_domain_rep(self._last_domain_rep)
+        else:
+            self._show_domain_loading()
         self._tabs.set(active_tab)
 
     # ── Tab populators ───────────────────────────────────────────────
@@ -436,6 +463,133 @@ class ForensicGUI(ctk.CTk):
             ]:
                 self._add_row(
                     self._geo_frame, display, str(geo.get(key) or "—")
+                )
+
+    # ── URLs & Links tab ────────────────────────────────────────────
+    def _populate_urls(self, urls: list[dict]) -> None:
+        self._clear_frame(self._url_frame)
+        self._add_section(self._url_frame, "Extracted URLs")
+
+        if not urls:
+            self._add_row(self._url_frame, "", "No URLs found in message body.")
+            return
+
+        mismatch_count = sum(1 for u in urls if u["mismatch"])
+        if mismatch_count:
+            self._add_row(
+                self._url_frame,
+                "Mismatches",
+                f"{mismatch_count} link(s) where display text domain differs from actual URL",
+                value_color=_FAIL_COLOR,
+                bold_value=True,
+            )
+
+        for i, u in enumerate(urls, 1):
+            self._add_section(self._url_frame, f"Link {i}")
+            self._add_row(self._url_frame, "URL", u["url"])
+            self._add_row(self._url_frame, "Domain", u["domain"])
+            if u["display_text"]:
+                self._add_row(self._url_frame, "Display Text", u["display_text"])
+            if u["mismatch"]:
+                self._add_row(
+                    self._url_frame,
+                    "Status",
+                    "MISMATCH — display text domain does not match URL",
+                    value_color=_FAIL_COLOR,
+                    bold_value=True,
+                )
+
+        # Domain reputation section (populated async)
+        self._add_section(self._url_frame, "Sender Domain Reputation")
+
+    def _show_domain_loading(self) -> None:
+        """Show a loading indicator in the domain reputation area."""
+        # Append to the URL frame (after the URLs section)
+        ctk.CTkLabel(
+            self._url_frame,
+            text="Querying WHOIS …",
+            font=ctk.CTkFont(family=_FONT_FAMILY, size=13),
+            text_color=_WARN_COLOR,
+        ).pack(pady=4, padx=8, anchor="w")
+
+    def _fetch_domain_rep(self, analyzer: "EmailForensicAnalyzer") -> None:
+        result = analyzer.check_domain_reputation()
+        self.after(0, self._populate_domain_rep, result)
+
+    def _populate_domain_rep(self, rep: dict) -> None:
+        self._last_domain_rep = rep
+        # Re-render the entire URL tab so domain rep appears cleanly.
+        if self._last_urls is not None:
+            self._populate_urls(self._last_urls)
+
+        if "error" in rep:
+            self._add_row(
+                self._url_frame, "Error", rep["error"], value_color=_FAIL_COLOR
+            )
+            return
+
+        self._add_row(self._url_frame, "Domain", rep.get("domain") or "—")
+        self._add_row(self._url_frame, "Registrar", rep.get("registrar") or "—")
+        self._add_row(
+            self._url_frame, "Created", rep.get("creation_date") or "—"
+        )
+        age = rep.get("domain_age_days")
+        age_str = f"{age} days" if age is not None else "—"
+        is_young = rep.get("is_young", False)
+        self._add_row(
+            self._url_frame,
+            "Domain Age",
+            age_str,
+            value_color=_FAIL_COLOR if is_young else _PASS_COLOR,
+            bold_value=True,
+        )
+        if is_young:
+            self._add_row(
+                self._url_frame,
+                "Warning",
+                "Domain is less than 30 days old — high phishing risk",
+                value_color=_FAIL_COLOR,
+                bold_value=True,
+            )
+
+    # ── Attachments tab ──────────────────────────────────────────────
+    def _populate_attachments(self, attachments: list[dict]) -> None:
+        self._clear_frame(self._attach_frame)
+        self._add_section(self._attach_frame, "Attachments")
+
+        if not attachments:
+            self._add_row(self._attach_frame, "", "No attachments found.")
+            return
+
+        risky_count = sum(1 for a in attachments if a["risky"])
+        if risky_count:
+            self._add_row(
+                self._attach_frame,
+                "Risky Files",
+                f"{risky_count} attachment(s) with dangerous file extensions",
+                value_color=_FAIL_COLOR,
+                bold_value=True,
+            )
+
+        for i, att in enumerate(attachments, 1):
+            label = f"File {i}"
+            if att["risky"]:
+                label += "  [RISKY]"
+            self._add_section(self._attach_frame, label)
+            self._add_row(self._attach_frame, "Filename", att["filename"])
+            self._add_row(self._attach_frame, "MIME Type", att["mime_type"])
+            self._add_row(
+                self._attach_frame, "Size", f"{att['size']:,} bytes"
+            )
+            self._add_row(self._attach_frame, "MD5", att["md5"])
+            self._add_row(self._attach_frame, "SHA-256", att["sha256"])
+            if att["risky"]:
+                self._add_row(
+                    self._attach_frame,
+                    "Status",
+                    "DANGEROUS — risky file extension",
+                    value_color=_FAIL_COLOR,
+                    bold_value=True,
                 )
 
     # ── Error display ────────────────────────────────────────────────
