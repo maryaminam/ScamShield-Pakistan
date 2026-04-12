@@ -54,6 +54,7 @@ class ForensicGUI(ctk.CTk):
         self._last_urls: list[dict] | None = None
         self._last_attachments: list[dict] | None = None
         self._last_domain_rep: dict | None = None
+        self._last_threat_intel: dict | None = None  # combined async results
 
         self._build_sidebar()
         self._build_main_area()
@@ -147,7 +148,7 @@ class ForensicGUI(ctk.CTk):
 
         for name in (
             "Metadata", "Routing Path", "Authentication",
-            "Geolocation", "URLs & Links", "Attachments",
+            "Geolocation", "URLs & Links", "Attachments", "Threat Intel",
         ):
             self._tabs.add(name)
 
@@ -160,6 +161,7 @@ class ForensicGUI(ctk.CTk):
         self._geo_frame = self._scrollable_frame(self._tabs.tab("Geolocation"))
         self._url_frame = self._scrollable_frame(self._tabs.tab("URLs & Links"))
         self._attach_frame = self._scrollable_frame(self._tabs.tab("Attachments"))
+        self._threat_frame = self._scrollable_frame(self._tabs.tab("Threat Intel"))
 
         # Placeholder
         self._placeholder = ctk.CTkLabel(
@@ -264,7 +266,7 @@ class ForensicGUI(ctk.CTk):
         self._populate_attachments(self._last_attachments)
         self._show_banner(self._last_auth)
 
-        # Geolocation + WHOIS run in background threads.
+        # Geolocation + WHOIS + Threat Intel run in background threads.
         self._show_geo_loading()
         threading.Thread(
             target=self._fetch_geo,
@@ -279,12 +281,26 @@ class ForensicGUI(ctk.CTk):
             daemon=True,
         ).start()
 
+        self._show_threat_loading()
+        threading.Thread(
+            target=self._fetch_threat_intel,
+            args=(analyzer,),
+            daemon=True,
+        ).start()
+
         self._tabs.set("Metadata")
 
-    def _show_banner(self, auth: dict) -> None:
+    def _show_banner(self, auth: dict, risk: dict | None = None) -> None:
+        messages: list[str] = []
         if auth["is_suspicious"]:
+            messages.append("Authentication failures detected")
+        if risk and risk.get("score", 0) >= 50:
+            messages.append(
+                f"Risk score {risk['score']}/100 ({risk['level']})"
+            )
+        if messages:
             self._banner.configure(
-                text="  WARNING  —  Authentication failures detected. This email may be spoofed.",
+                text="  WARNING  —  " + "  |  ".join(messages),
                 height=40,
             )
             self._banner.grid(row=0, column=0, sticky="ew", pady=(0, 6))
@@ -299,7 +315,8 @@ class ForensicGUI(ctk.CTk):
         self._populate_metadata(self._last_metadata)
         self._populate_routing(self._last_routing)
         self._populate_auth(self._last_auth)
-        self._show_banner(self._last_auth)
+        risk = self._last_threat_intel.get("risk") if self._last_threat_intel else None
+        self._show_banner(self._last_auth, risk)
         if self._last_geo is not None:
             self._populate_geo(self._last_orig_ip, self._last_geo)
         else:
@@ -312,6 +329,10 @@ class ForensicGUI(ctk.CTk):
             self._populate_domain_rep(self._last_domain_rep)
         else:
             self._show_domain_loading()
+        if self._last_threat_intel is not None:
+            self._populate_threat_intel(self._last_threat_intel)
+        else:
+            self._show_threat_loading()
         self._tabs.set(active_tab)
 
     # ── Tab populators ───────────────────────────────────────────────
@@ -591,6 +612,180 @@ class ForensicGUI(ctk.CTk):
                     value_color=_FAIL_COLOR,
                     bold_value=True,
                 )
+
+    # ── Threat Intel tab ────────────────────────────────────────────
+    def _show_threat_loading(self) -> None:
+        self._clear_frame(self._threat_frame)
+        self._add_section(self._threat_frame, "Threat Intelligence")
+        ctk.CTkLabel(
+            self._threat_frame,
+            text="Running DNS validation, pattern analysis, and risk scoring …",
+            font=ctk.CTkFont(family=_FONT_FAMILY, size=13),
+            text_color=_WARN_COLOR,
+        ).pack(pady=10)
+
+    def _fetch_threat_intel(self, analyzer: "EmailForensicAnalyzer") -> None:
+        dns_rec = analyzer.validate_dns_records()
+        patterns = analyzer.detect_phishing_patterns()
+        abuse = analyzer.check_ip_abuse(analyzer.originating_ip or "")
+        risk = analyzer.calculate_risk_score(
+            auth=self._last_auth,
+            urls=self._last_urls,
+            attachments=self._last_attachments,
+            domain_rep=self._last_domain_rep,
+            abuse=abuse,
+            patterns=patterns,
+        )
+        result = {
+            "dns": dns_rec,
+            "patterns": patterns,
+            "abuse": abuse,
+            "risk": risk,
+        }
+        self.after(0, self._populate_threat_intel, result)
+
+    def _populate_threat_intel(self, data: dict) -> None:
+        self._last_threat_intel = data
+        self._clear_frame(self._threat_frame)
+
+        risk = data["risk"]
+        dns_rec = data["dns"]
+        patterns = data["patterns"]
+        abuse = data["abuse"]
+
+        # ── Risk Score ──────────────────────────────────────────
+        self._add_section(self._threat_frame, "Risk Score")
+
+        score = risk["score"]
+        level = risk["level"]
+        if score >= 75:
+            color = _FAIL_COLOR
+        elif score >= 50:
+            color = _WARN_COLOR
+        else:
+            color = _PASS_COLOR
+
+        # Large score display
+        score_frame = ctk.CTkFrame(self._threat_frame, fg_color="transparent")
+        score_frame.pack(fill="x", padx=4, pady=(4, 8))
+        ctk.CTkLabel(
+            score_frame,
+            text=f"{score}/100",
+            font=ctk.CTkFont(family=_FONT_FAMILY, size=32, weight="bold"),
+            text_color=color,
+        ).pack(side="left", padx=(4, 12))
+        ctk.CTkLabel(
+            score_frame,
+            text=level,
+            font=ctk.CTkFont(family=_FONT_FAMILY, size=20, weight="bold"),
+            text_color=color,
+        ).pack(side="left")
+
+        # Progress bar
+        progress = ctk.CTkProgressBar(self._threat_frame, height=14)
+        progress.set(score / 100)
+        progress.configure(progress_color=color[1] if isinstance(color, tuple) else color)
+        progress.pack(fill="x", padx=8, pady=(0, 10))
+
+        # Breakdown
+        if risk["breakdown"]:
+            self._add_section(self._threat_frame, "Score Breakdown")
+            for _, (pts, reason) in risk["breakdown"].items():
+                self._add_row(
+                    self._threat_frame,
+                    f"+{pts} pts",
+                    reason,
+                    value_color=_FAIL_COLOR,
+                    bold_value=True,
+                )
+
+        # ── DNS Records ─────────────────────────────────────────
+        self._add_section(self._threat_frame, "DNS Record Validation")
+        if dns_rec.get("error"):
+            self._add_row(
+                self._threat_frame, "Error", dns_rec["error"],
+                value_color=_FAIL_COLOR,
+            )
+        else:
+            self._add_row(
+                self._threat_frame, "Domain", dns_rec.get("domain", "—")
+            )
+            for proto in ("spf", "dkim", "dmarc"):
+                rec = dns_rec[proto]
+                exists = rec["exists"]
+                status_text = "PUBLISHED" if exists else "NOT FOUND"
+                self._add_row(
+                    self._threat_frame,
+                    proto.upper(),
+                    status_text,
+                    value_color=_PASS_COLOR if exists else _FAIL_COLOR,
+                    bold_value=True,
+                )
+                if rec["record"]:
+                    # Truncate long records for display.
+                    record_text = rec["record"]
+                    if len(record_text) > 120:
+                        record_text = record_text[:117] + "…"
+                    self._add_row(
+                        self._threat_frame, "", record_text,
+                        value_color=_NEUTRAL_COLOR,
+                    )
+
+        # ── Phishing Patterns ───────────────────────────────────
+        self._add_section(self._threat_frame, "Phishing Pattern Analysis")
+        total = patterns["total_flags"]
+        if total == 0:
+            self._add_row(
+                self._threat_frame, "Result",
+                "No suspicious language detected",
+                value_color=_PASS_COLOR, bold_value=True,
+            )
+        else:
+            self._add_row(
+                self._threat_frame, "Flags Found",
+                str(total),
+                value_color=_FAIL_COLOR, bold_value=True,
+            )
+
+        for category, label in [
+            ("urgency", "Urgency"),
+            ("credential", "Credential Harvesting"),
+            ("impersonation", "Brand Impersonation"),
+        ]:
+            matches = patterns[category]
+            if matches:
+                self._add_row(
+                    self._threat_frame, label,
+                    ", ".join(matches),
+                    value_color=_FAIL_COLOR,
+                )
+
+        # ── AbuseIPDB ───────────────────────────────────────────
+        self._add_section(self._threat_frame, "AbuseIPDB Reputation")
+        if abuse.get("error"):
+            self._add_row(
+                self._threat_frame, "Status", abuse["error"],
+                value_color=_NEUTRAL_COLOR,
+            )
+        else:
+            flagged = abuse.get("is_flagged", False)
+            self._add_row(self._threat_frame, "IP", abuse.get("ip", "—"))
+            self._add_row(
+                self._threat_frame, "Abuse Score",
+                f"{abuse.get('abuse_score', 0)}%",
+                value_color=_FAIL_COLOR if flagged else _PASS_COLOR,
+                bold_value=True,
+            )
+            self._add_row(
+                self._threat_frame, "Total Reports",
+                str(abuse.get("total_reports", 0)),
+            )
+            if abuse.get("isp"):
+                self._add_row(self._threat_frame, "ISP", abuse["isp"])
+
+        # Update banner with risk info.
+        if self._last_auth:
+            self._show_banner(self._last_auth, risk)
 
     # ── Error display ────────────────────────────────────────────────
     def _show_error(self, msg: str) -> None:

@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
+import dns.resolver
 import requests
 import whois
 from bs4 import BeautifulSoup
@@ -51,6 +52,54 @@ _RISKY_EXTENSIONS = {
 
 # Domain age threshold (days). Domains younger than this are flagged.
 _YOUNG_DOMAIN_DAYS = 30
+
+# AbuseIPDB API endpoint.
+_ABUSEIPDB_API = "https://api.abuseipdb.com/api/v2/check"
+
+# DNS resolver timeout (seconds).
+_DNS_TIMEOUT = 5
+
+# ── Phishing pattern detection ──────────────────────────────────────
+_URGENCY_PATTERNS = re.compile(
+    r"\b("
+    r"urgent|immediately|act now|right away|within \d+ hours?"
+    r"|suspend|deactivat|terminat|locked|disabled|compromised"
+    r"|verify your|confirm your|update your|validate your"
+    r"|unusual activity|unauthorized|security alert|suspicious"
+    r"|click here|click below|click immediately"
+    r"|final warning|last chance|expire|expiring"
+    r")\b",
+    re.IGNORECASE,
+)
+_CREDENTIAL_PATTERNS = re.compile(
+    r"\b("
+    r"password|login|credential|social security|ssn|credit card"
+    r"|bank account|routing number|pin number|cvv"
+    r"|enter your|provide your|submit your|send your"
+    r")\b",
+    re.IGNORECASE,
+)
+_IMPERSONATION_PATTERNS = re.compile(
+    r"\b("
+    r"paypal|apple|microsoft|google|amazon|netflix|facebook"
+    r"|instagram|whatsapp|bank of america|wells fargo|chase"
+    r"|irs|hmrc|tax refund|customs|fedex|ups|dhl"
+    r"|helpdesk|it department|support team|admin team"
+    r")\b",
+    re.IGNORECASE,
+)
+
+# Risk-score weights (0–100 total budget).
+_WEIGHTS = {
+    "auth_fail": 25,       # any SPF/DKIM/DMARC fail or softfail
+    "url_mismatch": 20,    # display/href domain mismatch
+    "risky_attachment": 15, # dangerous file extension
+    "young_domain": 15,    # sender domain < 30 days old
+    "abuse_ip": 10,        # originating IP flagged on AbuseIPDB
+    "urgency_lang": 5,     # urgency phrases in subject/body
+    "credential_lang": 5,  # credential-harvesting phrases
+    "impersonation": 5,    # brand impersonation keywords
+}
 
 
 class EmailForensicAnalyzer:
@@ -492,6 +541,315 @@ class EmailForensicAnalyzer:
             "domain_age_days": age_days,
             "is_young": is_young,
         }
+
+
+    # ------------------------------------------------------------------
+    # Phase 2: DNS record validation
+    # ------------------------------------------------------------------
+
+    def validate_dns_records(self, domain: str | None = None) -> dict:
+        """Perform live DNS lookups for SPF, DKIM, and DMARC records.
+
+        Compares what the sender domain *publishes* in DNS against the
+        authentication results observed in the email headers.
+
+        Args:
+            domain: Domain to query. Extracted from ``From`` if omitted.
+
+        Returns:
+            A dict with keys:
+                - domain    : the domain queried
+                - spf       : dict with ``record`` and ``exists`` keys
+                - dkim      : dict with ``record`` and ``exists`` keys
+                - dmarc     : dict with ``record`` and ``exists`` keys
+                - error     : present only on total failure
+        """
+        if domain is None:
+            from_header = self.msg.get("From") or ""
+            at_pos = from_header.rfind("@")
+            if at_pos == -1:
+                return {"domain": None, "error": "No domain in From header"}
+            domain = from_header[at_pos + 1:].strip().rstrip(">").lower()
+
+        resolver = dns.resolver.Resolver()
+        resolver.lifetime = _DNS_TIMEOUT
+
+        def _query_txt(name: str) -> str | None:
+            try:
+                answers = resolver.resolve(name, "TXT")
+                for rdata in answers:
+                    txt = rdata.to_text().strip('"')
+                    return txt
+            except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN,
+                    dns.resolver.NoNameservers, dns.exception.Timeout):
+                return None
+
+        # SPF: TXT record on the domain itself, starts with "v=spf1"
+        spf_record = None
+        try:
+            answers = resolver.resolve(domain, "TXT")
+            for rdata in answers:
+                txt = rdata.to_text().strip('"')
+                if txt.startswith("v=spf1"):
+                    spf_record = txt
+                    break
+        except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN,
+                dns.resolver.NoNameservers, dns.exception.Timeout):
+            pass
+
+        # DKIM: try common selectors
+        dkim_record = None
+        for selector in ("default", "google", "selector1", "selector2",
+                         "s1", "s2", "k1", "dkim", "mail"):
+            result = _query_txt(f"{selector}._domainkey.{domain}")
+            if result and "v=DKIM1" in result:
+                dkim_record = result
+                break
+
+        # DMARC: TXT record at _dmarc.<domain>
+        dmarc_record = _query_txt(f"_dmarc.{domain}")
+
+        return {
+            "domain": domain,
+            "spf": {"record": spf_record, "exists": spf_record is not None},
+            "dkim": {"record": dkim_record, "exists": dkim_record is not None},
+            "dmarc": {"record": dmarc_record, "exists": dmarc_record is not None},
+        }
+
+    # ------------------------------------------------------------------
+    # Phase 2: AbuseIPDB reputation check
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def check_ip_abuse(ip: str, api_key: str | None = None) -> dict:
+        """Query AbuseIPDB for abuse reports on an IP address.
+
+        Args:
+            ip: The IP address to check.
+            api_key: AbuseIPDB API key.  If ``None``, the check is skipped
+                     gracefully (free tier keys are available at abuseipdb.com).
+
+        Returns:
+            A dict with keys:
+                - ip                  : the IP queried
+                - abuse_score         : confidence-of-abuse percentage (0–100)
+                - total_reports       : number of abuse reports
+                - country_code        : ISO country code
+                - isp                 : ISP name
+                - is_flagged          : True if abuse_score >= 25
+                - error               : present only on failure
+        """
+        if api_key is None:
+            return {
+                "ip": ip,
+                "error": "No AbuseIPDB API key provided — skipped",
+            }
+
+        try:
+            addr = ipaddress.ip_address(ip)
+        except ValueError:
+            return {"ip": ip, "error": f"Invalid IP address: {ip}"}
+
+        if not addr.is_global:
+            return {"ip": ip, "error": "Internal IP — not queried"}
+
+        try:
+            resp = requests.get(
+                _ABUSEIPDB_API,
+                headers={"Key": api_key, "Accept": "application/json"},
+                params={"ipAddress": ip, "maxAgeInDays": 90},
+                timeout=_API_TIMEOUT,
+            )
+            resp.raise_for_status()
+            data = resp.json().get("data", {})
+        except requests.exceptions.Timeout:
+            return {"ip": ip, "error": "AbuseIPDB request timed out"}
+        except requests.exceptions.ConnectionError:
+            return {"ip": ip, "error": "Unable to reach AbuseIPDB"}
+        except requests.exceptions.RequestException as exc:
+            return {"ip": ip, "error": f"AbuseIPDB request failed: {exc}"}
+
+        score = data.get("abuseConfidenceScore", 0)
+        return {
+            "ip": ip,
+            "abuse_score": score,
+            "total_reports": data.get("totalReports", 0),
+            "country_code": data.get("countryCode"),
+            "isp": data.get("isp"),
+            "is_flagged": score >= 25,
+        }
+
+    # ------------------------------------------------------------------
+    # Phase 2: Phishing pattern detection
+    # ------------------------------------------------------------------
+
+    def detect_phishing_patterns(self) -> dict:
+        """Scan the subject line and body for common phishing language.
+
+        Returns:
+            A dict with keys:
+                - urgency     : list of matched urgency phrases
+                - credential  : list of matched credential-harvesting phrases
+                - impersonation: list of matched brand-impersonation phrases
+                - total_flags : total number of unique matches
+        """
+        subject = self.msg.get("Subject") or ""
+
+        # Get plain-text body.
+        body = ""
+        if self.msg.is_multipart():
+            for part in self.msg.walk():
+                if part.get_content_type() == "text/plain":
+                    body = part.get_content()
+                    break
+                if part.get_content_type() == "text/html":
+                    body = BeautifulSoup(
+                        part.get_content(), "html.parser"
+                    ).get_text(" ")
+                    break
+        else:
+            content = self.msg.get_content()
+            if self.msg.get_content_type() == "text/html":
+                body = BeautifulSoup(content, "html.parser").get_text(" ")
+            else:
+                body = content
+
+        combined = f"{subject} {body}"
+
+        urgency = sorted(
+            {m.lower() for m in _URGENCY_PATTERNS.findall(combined)}
+        )
+        credential = sorted(
+            {m.lower() for m in _CREDENTIAL_PATTERNS.findall(combined)}
+        )
+        impersonation = sorted(
+            {m.lower() for m in _IMPERSONATION_PATTERNS.findall(combined)}
+        )
+
+        return {
+            "urgency": urgency,
+            "credential": credential,
+            "impersonation": impersonation,
+            "total_flags": len(urgency) + len(credential) + len(impersonation),
+        }
+
+    # ------------------------------------------------------------------
+    # Phase 2: Composite risk score (0–100)
+    # ------------------------------------------------------------------
+
+    def calculate_risk_score(
+        self,
+        *,
+        auth: dict | None = None,
+        urls: list[dict] | None = None,
+        attachments: list[dict] | None = None,
+        domain_rep: dict | None = None,
+        abuse: dict | None = None,
+        patterns: dict | None = None,
+    ) -> dict:
+        """Compute a weighted risk score from all available analysis results.
+
+        Each signal contributes a fixed weight (see ``_WEIGHTS``) only when
+        the corresponding indicator is positive.  Pre-computed results can
+        be passed in to avoid re-running analyses; any that are ``None``
+        will be computed on the fly.
+
+        Returns:
+            A dict with keys:
+                - score       : int 0–100
+                - level       : "Critical" / "High" / "Medium" / "Low"
+                - breakdown   : dict mapping signal name → (points, reason)
+        """
+        if auth is None:
+            auth = self.check_authentication()
+        if urls is None:
+            urls = self.extract_urls()
+        if attachments is None:
+            attachments = self.extract_attachments()
+        if patterns is None:
+            patterns = self.detect_phishing_patterns()
+
+        score = 0
+        breakdown: dict[str, tuple[int, str]] = {}
+
+        # 1. Authentication failures
+        if auth.get("is_suspicious"):
+            pts = _WEIGHTS["auth_fail"]
+            failures = [p for p in ("spf", "dkim", "dmarc")
+                        if auth.get(p) in ("fail", "softfail")]
+            score += pts
+            breakdown["auth_fail"] = (pts, f"{', '.join(f.upper() for f in failures)} failed")
+
+        # 2. URL mismatches
+        mismatches = [u for u in urls if u.get("mismatch")]
+        if mismatches:
+            pts = _WEIGHTS["url_mismatch"]
+            score += pts
+            breakdown["url_mismatch"] = (pts, f"{len(mismatches)} link(s) with domain mismatch")
+
+        # 3. Risky attachments
+        risky = [a for a in attachments if a.get("risky")]
+        if risky:
+            pts = _WEIGHTS["risky_attachment"]
+            score += pts
+            names = ", ".join(a["filename"] for a in risky)
+            breakdown["risky_attachment"] = (pts, f"Dangerous files: {names}")
+
+        # 4. Young domain
+        if domain_rep and not domain_rep.get("error") and domain_rep.get("is_young"):
+            pts = _WEIGHTS["young_domain"]
+            score += pts
+            age = domain_rep.get("domain_age_days", "?")
+            breakdown["young_domain"] = (pts, f"Domain only {age} days old")
+
+        # 5. AbuseIPDB
+        if abuse and not abuse.get("error") and abuse.get("is_flagged"):
+            pts = _WEIGHTS["abuse_ip"]
+            score += pts
+            breakdown["abuse_ip"] = (
+                pts,
+                f"Abuse score {abuse['abuse_score']}%, "
+                f"{abuse['total_reports']} reports",
+            )
+
+        # 6. Urgency language
+        if patterns.get("urgency"):
+            pts = _WEIGHTS["urgency_lang"]
+            score += pts
+            breakdown["urgency_lang"] = (
+                pts,
+                f"Matched: {', '.join(patterns['urgency'][:5])}",
+            )
+
+        # 7. Credential harvesting language
+        if patterns.get("credential"):
+            pts = _WEIGHTS["credential_lang"]
+            score += pts
+            breakdown["credential_lang"] = (
+                pts,
+                f"Matched: {', '.join(patterns['credential'][:5])}",
+            )
+
+        # 8. Brand impersonation
+        if patterns.get("impersonation"):
+            pts = _WEIGHTS["impersonation"]
+            score += pts
+            breakdown["impersonation"] = (
+                pts,
+                f"Matched: {', '.join(patterns['impersonation'][:5])}",
+            )
+
+        # Determine threat level.
+        if score >= 75:
+            level = "Critical"
+        elif score >= 50:
+            level = "High"
+        elif score >= 25:
+            level = "Medium"
+        else:
+            level = "Low"
+
+        return {"score": score, "level": level, "breakdown": breakdown}
 
 
 if __name__ == "__main__":
