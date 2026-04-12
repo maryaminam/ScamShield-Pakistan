@@ -110,6 +110,7 @@ class ForensicGUI(ctk.CTk):
             height=40,
             fg_color="transparent",
             border_width=2,
+            text_color=("gray10", "gray90"),
             command=self._on_paste_headers,
         )
         self._paste_btn.pack(padx=20, pady=(8, 0), fill="x")
@@ -122,6 +123,7 @@ class ForensicGUI(ctk.CTk):
             height=40,
             fg_color="transparent",
             border_width=2,
+            text_color=("gray10", "gray90"),
             command=self._on_batch_analyze,
         )
         self._batch_btn.pack(padx=20, pady=(8, 0), fill="x")
