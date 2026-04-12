@@ -3,6 +3,7 @@ authentication, geolocation, URL/attachment scanning, and domain reputation."""
 
 import email
 import email.policy
+import email.utils
 import hashlib
 import ipaddress
 import re
@@ -56,6 +57,9 @@ _YOUNG_DOMAIN_DAYS = 30
 # AbuseIPDB API endpoint.
 _ABUSEIPDB_API = "https://api.abuseipdb.com/api/v2/check"
 
+# VirusTotal API endpoint (v3).
+_VT_API = "https://www.virustotal.com/api/v3/files/{hash}"
+
 # DNS resolver timeout (seconds).
 _DNS_TIMEOUT = 5
 
@@ -88,6 +92,26 @@ _IMPERSONATION_PATTERNS = re.compile(
     r")\b",
     re.IGNORECASE,
 )
+
+# X-Headers of forensic interest.
+_FORENSIC_X_HEADERS = [
+    "X-Mailer",
+    "X-Originating-IP",
+    "X-Spam-Status",
+    "X-Spam-Score",
+    "X-Spam-Flag",
+    "X-Forefront-Antispam-Report",
+    "X-Microsoft-Antispam",
+    "X-Google-DKIM-Signature",
+    "X-Received",
+    "X-Original-To",
+    "X-Envelope-From",
+    "X-Priority",
+]
+
+# Maximum plausible seconds between two consecutive Received hops.
+# Anything beyond this is flagged as suspicious (4 hours).
+_MAX_HOP_DELTA_SECONDS = 4 * 3600
 
 # Risk-score weights (0–100 total budget).
 _WEIGHTS = {
@@ -680,6 +704,84 @@ class EmailForensicAnalyzer:
         }
 
     # ------------------------------------------------------------------
+    # Phase 6: VirusTotal hash lookup
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def check_virustotal(file_hash: str, api_key: str | None = None) -> dict:
+        """Query VirusTotal for scan results on a file hash.
+
+        Args:
+            file_hash: MD5, SHA-1, or SHA-256 hash of a file.
+            api_key: VirusTotal API key.  If ``None``, the check is
+                     skipped gracefully (free keys available at virustotal.com).
+
+        Returns:
+            A dict with keys:
+                - hash            : the hash queried
+                - detections      : number of engines that flagged the file
+                - total_engines   : total number of engines that scanned it
+                - detection_rate  : "detections/total" string
+                - is_malicious    : True if detections > 0
+                - scan_results    : dict of engine_name → verdict (top 10)
+                - error           : present only on failure
+        """
+        if api_key is None:
+            return {
+                "hash": file_hash,
+                "error": "No VirusTotal API key provided — skipped",
+            }
+
+        try:
+            resp = requests.get(
+                _VT_API.format(hash=file_hash),
+                headers={"x-apikey": api_key},
+                timeout=_API_TIMEOUT,
+            )
+            if resp.status_code == 404:
+                return {
+                    "hash": file_hash,
+                    "detections": 0,
+                    "total_engines": 0,
+                    "detection_rate": "Not found in VT database",
+                    "is_malicious": False,
+                    "scan_results": {},
+                }
+            resp.raise_for_status()
+            data = resp.json().get("data", {}).get("attributes", {})
+        except requests.exceptions.Timeout:
+            return {"hash": file_hash, "error": "VirusTotal request timed out"}
+        except requests.exceptions.ConnectionError:
+            return {"hash": file_hash, "error": "Unable to reach VirusTotal"}
+        except requests.exceptions.RequestException as exc:
+            return {"hash": file_hash, "error": f"VirusTotal request failed: {exc}"}
+
+        stats = data.get("last_analysis_stats", {})
+        malicious = stats.get("malicious", 0)
+        suspicious = stats.get("suspicious", 0)
+        detections = malicious + suspicious
+        total = sum(stats.values())
+
+        # Extract top detections from engine results.
+        results = data.get("last_analysis_results", {})
+        flagged = {
+            engine: info.get("result", "unknown")
+            for engine, info in results.items()
+            if info.get("category") in ("malicious", "suspicious")
+        }
+        # Limit to 10 for display.
+        top_results = dict(list(flagged.items())[:10])
+
+        return {
+            "hash": file_hash,
+            "detections": detections,
+            "total_engines": total,
+            "detection_rate": f"{detections}/{total}",
+            "is_malicious": detections > 0,
+            "scan_results": top_results,
+        }
+
+    # ------------------------------------------------------------------
     # Phase 2: Phishing pattern detection
     # ------------------------------------------------------------------
 
@@ -850,6 +952,559 @@ class EmailForensicAnalyzer:
             level = "Low"
 
         return {"score": score, "level": level, "breakdown": breakdown}
+
+    # ------------------------------------------------------------------
+    # Phase 1: Deeper header analysis
+    # ------------------------------------------------------------------
+
+    def _extract_domain(self, header_value: str) -> str | None:
+        """Extract the bare domain from a header like 'Name <user@domain>'."""
+        if not header_value:
+            return None
+        at = header_value.rfind("@")
+        if at == -1:
+            return None
+        return header_value[at + 1:].strip().rstrip(">").lower()
+
+    def detect_header_anomalies(self) -> dict:
+        """Flag mismatches between identity-related headers.
+
+        Checks:
+            1. From vs. Reply-To domain mismatch.
+            2. From vs. Return-Path domain mismatch.
+            3. From vs. DKIM ``d=`` domain mismatch (extracted from
+               ``Authentication-Results`` header).
+            4. Presence of Reply-To pointing to a different domain
+               (common phishing redirect).
+
+        Returns:
+            A dict with:
+                - domains    : dict of header → extracted domain
+                - anomalies  : list of human-readable anomaly strings
+                - is_anomalous: True if any anomalies were found
+        """
+        from_hdr = self.msg.get("From") or ""
+        reply_to = self.msg.get("Reply-To") or ""
+        return_path = self.msg.get("Return-Path") or ""
+        auth_results = self.msg.get("Authentication-Results") or ""
+
+        from_domain = self._extract_domain(from_hdr)
+        reply_domain = self._extract_domain(reply_to)
+        return_domain = self._extract_domain(return_path)
+
+        # DKIM d= domain from Authentication-Results.
+        dkim_d_match = re.search(
+            r"dkim=\w+[^;]*?header\.(?:d|i)=@?([\w.\-]+)", auth_results, re.IGNORECASE
+        )
+        dkim_domain = dkim_d_match.group(1).lower() if dkim_d_match else None
+
+        domains = {
+            "From": from_domain,
+            "Reply-To": reply_domain,
+            "Return-Path": return_domain,
+            "DKIM d=": dkim_domain,
+        }
+
+        anomalies: list[str] = []
+
+        if reply_domain and from_domain and reply_domain != from_domain:
+            anomalies.append(
+                f"Reply-To ({reply_domain}) differs from From ({from_domain})"
+            )
+
+        if return_domain and from_domain and return_domain != from_domain:
+            anomalies.append(
+                f"Return-Path ({return_domain}) differs from From ({from_domain})"
+            )
+
+        if dkim_domain and from_domain and dkim_domain != from_domain:
+            anomalies.append(
+                f"DKIM signing domain ({dkim_domain}) differs from From ({from_domain})"
+            )
+
+        return {
+            "domains": domains,
+            "anomalies": anomalies,
+            "is_anomalous": len(anomalies) > 0,
+        }
+
+    def analyze_timestamps(self) -> dict:
+        """Inspect Received-header timestamps for forensic anomalies.
+
+        Checks:
+            1. Time-travel: a hop whose timestamp is *earlier* than the
+               previous hop (email arrived before it was sent).
+            2. Excessive delay: gaps larger than ``_MAX_HOP_DELTA_SECONDS``
+               between consecutive hops.
+            3. Future-dated: the ``Date`` header is in the future.
+
+        Returns:
+            A dict with:
+                - hops           : list of dicts (hop, timestamp_raw, parsed_dt)
+                - anomalies      : list of human-readable anomaly strings
+                - is_anomalous   : True if any anomalies were found
+        """
+        received_headers: list[str] = self.msg.get_all("Received") or []
+        # Chronological order (oldest first).
+        received_headers = list(reversed(received_headers))
+
+        parsed_hops: list[dict] = []
+        anomalies: list[str] = []
+
+        for idx, raw in enumerate(received_headers, start=1):
+            header = " ".join(raw.split())
+            ts_match = _TIMESTAMP_RE.search(header)
+            ts_raw = ts_match.group(1).strip() if ts_match else None
+            parsed_dt = None
+            if ts_raw:
+                parsed_tuple = email.utils.parsedate_to_datetime(ts_raw)
+                if parsed_tuple:
+                    parsed_dt = parsed_tuple.astimezone(timezone.utc)
+            parsed_hops.append({
+                "hop": idx,
+                "timestamp_raw": ts_raw,
+                "parsed_dt": parsed_dt,
+            })
+
+        # Compare consecutive hops.
+        for i in range(1, len(parsed_hops)):
+            prev_dt = parsed_hops[i - 1].get("parsed_dt")
+            curr_dt = parsed_hops[i].get("parsed_dt")
+            if prev_dt is None or curr_dt is None:
+                continue
+
+            delta = (curr_dt - prev_dt).total_seconds()
+
+            if delta < 0:
+                anomalies.append(
+                    f"Hop {parsed_hops[i]['hop']}: time-travel detected — "
+                    f"arrived {abs(delta):.0f}s before previous hop"
+                )
+            elif delta > _MAX_HOP_DELTA_SECONDS:
+                anomalies.append(
+                    f"Hop {parsed_hops[i]['hop']}: excessive delay — "
+                    f"{delta / 3600:.1f} hours between hops"
+                )
+
+        # Check if the Date header is in the future.
+        date_hdr = self.msg.get("Date")
+        if date_hdr:
+            try:
+                msg_dt = email.utils.parsedate_to_datetime(date_hdr)
+                msg_dt = msg_dt.astimezone(timezone.utc)
+                now = datetime.now(timezone.utc)
+                if msg_dt > now:
+                    diff = (msg_dt - now).total_seconds()
+                    anomalies.append(
+                        f"Date header is {diff / 3600:.1f} hours in the future"
+                    )
+            except (TypeError, ValueError):
+                anomalies.append("Date header could not be parsed")
+
+        return {
+            "hops": parsed_hops,
+            "anomalies": anomalies,
+            "is_anomalous": len(anomalies) > 0,
+        }
+
+    def extract_x_headers(self) -> dict:
+        """Extract forensically interesting X-headers from the message.
+
+        Returns:
+            A dict mapping header names to their values (or lists of
+            values when a header appears more than once).  Only headers
+            that are present are included.
+        """
+        result: dict[str, str | list[str]] = {}
+
+        for hdr in _FORENSIC_X_HEADERS:
+            values = self.msg.get_all(hdr)
+            if not values:
+                continue
+            # Collapse folded whitespace in each value.
+            values = [" ".join(v.split()) for v in values]
+            result[hdr] = values[0] if len(values) == 1 else values
+
+        return result
+
+
+    # ------------------------------------------------------------------
+    # Phase 4: HTML report generation
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _esc(text: str | None) -> str:
+        """HTML-escape a string, returning '—' for None/empty."""
+        if not text:
+            return "&mdash;"
+        return (
+            str(text)
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace('"', "&quot;")
+        )
+
+    def generate_html_report(
+        self,
+        *,
+        metadata: dict | None = None,
+        routing: list[dict] | None = None,
+        auth: dict | None = None,
+        header_analysis: dict | None = None,
+        geo: list[tuple[str, dict]] | None = None,
+        urls: list[dict] | None = None,
+        attachments: list[dict] | None = None,
+        domain_rep: dict | None = None,
+        threat_intel: dict | None = None,
+    ) -> str:
+        """Generate a self-contained HTML forensic report.
+
+        Pre-computed analysis results can be passed in to avoid
+        re-running analyses.  Any that are ``None`` will be computed
+        on the fly (except geo / domain_rep / threat_intel which
+        require network calls and are simply omitted when absent).
+
+        Returns:
+            A complete HTML document as a string.
+        """
+        esc = self._esc
+
+        if metadata is None:
+            metadata = self.extract_basic_metadata()
+        if routing is None:
+            routing = self.extract_routing_path()
+        if auth is None:
+            auth = self.check_authentication()
+        if header_analysis is None:
+            header_analysis = {
+                "anomalies": self.detect_header_anomalies(),
+                "timestamps": self.analyze_timestamps(),
+                "x_headers": self.extract_x_headers(),
+            }
+        if urls is None:
+            urls = self.extract_urls()
+        if attachments is None:
+            attachments = self.extract_attachments()
+
+        from datetime import datetime, timezone
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+
+        # ── Risk score banner ───────────────────────────────────
+        risk_html = ""
+        if threat_intel and "risk" in threat_intel:
+            risk = threat_intel["risk"]
+            score = risk["score"]
+            level = risk["level"]
+            if score >= 75:
+                badge_color = "#e74c3c"
+            elif score >= 50:
+                badge_color = "#f39c12"
+            elif score >= 25:
+                badge_color = "#3498db"
+            else:
+                badge_color = "#2ecc71"
+            risk_html = f"""
+            <div class="risk-banner" style="background:{badge_color}">
+                <span class="risk-score">{score}/100</span>
+                <span class="risk-level">{esc(level)}</span>
+            </div>"""
+
+        # ── Metadata ────────────────────────────────────────────
+        meta_rows = "\n".join(
+            f"<tr><td class='lbl'>{esc(k)}</td><td>{esc(str(v))}</td></tr>"
+            for k, v in metadata.items()
+        )
+
+        # ── Authentication ──────────────────────────────────────
+        auth_rows = ""
+        for proto in ("spf", "dkim", "dmarc"):
+            status = auth.get(proto)
+            display = (status or "NOT PRESENT").upper()
+            cls = "pass" if status == "pass" else ("fail" if status in ("fail", "softfail") else "neutral")
+            auth_rows += f"<tr><td class='lbl'>{proto.upper()}</td><td class='{cls}'>{esc(display)}</td></tr>\n"
+        verdict_cls = "fail" if auth.get("is_suspicious") else "pass"
+        verdict_text = "SUSPICIOUS — one or more checks failed" if auth.get("is_suspicious") else "No failures detected"
+        auth_rows += f"<tr><td class='lbl'>Verdict</td><td class='{verdict_cls}'><strong>{esc(verdict_text)}</strong></td></tr>"
+
+        # ── Header analysis ─────────────────────────────────────
+        header_html = ""
+        if header_analysis:
+            anomalies = header_analysis.get("anomalies", {})
+            timestamps = header_analysis.get("timestamps", {})
+            x_headers = header_analysis.get("x_headers", {})
+
+            # Domains
+            domain_rows = ""
+            for hdr_name, domain in anomalies.get("domains", {}).items():
+                domain_rows += f"<tr><td class='lbl'>{esc(hdr_name)}</td><td>{esc(domain)}</td></tr>\n"
+
+            anomaly_rows = ""
+            if anomalies.get("is_anomalous"):
+                for line in anomalies.get("anomalies", []):
+                    anomaly_rows += f"<tr><td class='lbl'>Warning</td><td class='fail'><strong>{esc(line)}</strong></td></tr>\n"
+            else:
+                anomaly_rows = "<tr><td class='lbl'>Status</td><td class='pass'><strong>All identity headers are consistent</strong></td></tr>"
+
+            # Timestamps
+            ts_rows = ""
+            for hop in timestamps.get("hops", []):
+                dt = hop.get("parsed_dt")
+                dt_str = dt.strftime("%Y-%m-%d %H:%M:%S UTC") if dt else "unparseable"
+                ts_rows += f"<tr><td class='lbl'>Hop {hop['hop']}</td><td>{esc(dt_str)}</td></tr>\n"
+
+            ts_anomaly_rows = ""
+            if timestamps.get("is_anomalous"):
+                for line in timestamps.get("anomalies", []):
+                    ts_anomaly_rows += f"<tr><td class='lbl'>Warning</td><td class='fail'><strong>{esc(line)}</strong></td></tr>\n"
+            else:
+                ts_anomaly_rows = "<tr><td class='lbl'>Status</td><td class='pass'><strong>No timing anomalies detected</strong></td></tr>"
+
+            # X-Headers
+            xh_rows = ""
+            if x_headers:
+                for hdr_name, value in x_headers.items():
+                    if isinstance(value, list):
+                        for v in value:
+                            xh_rows += f"<tr><td class='lbl'>{esc(hdr_name)}</td><td>{esc(v)}</td></tr>\n"
+                    else:
+                        xh_rows += f"<tr><td class='lbl'>{esc(hdr_name)}</td><td>{esc(value)}</td></tr>\n"
+            else:
+                xh_rows = "<tr><td colspan='2' class='neutral'>No forensic X-Headers present</td></tr>"
+
+            header_html = f"""
+            <h2>Header Analysis</h2>
+            <h3>Identity Verification</h3>
+            <table>{domain_rows}{anomaly_rows}</table>
+            <h3>Timestamp Analysis</h3>
+            <table>{ts_rows}{ts_anomaly_rows}</table>
+            <h3>Forensic X-Headers</h3>
+            <table>{xh_rows}</table>"""
+
+        # ── Routing path ────────────────────────────────────────
+        route_rows = ""
+        if routing:
+            for hop in routing:
+                route_rows += (
+                    f"<tr><td>{hop['hop']}</td><td>{esc(hop['from'])}</td>"
+                    f"<td>{esc(hop['by'])}</td><td>{esc(hop['ip'])}</td>"
+                    f"<td>{esc(hop['timestamp'])}</td></tr>\n"
+                )
+        else:
+            route_rows = "<tr><td colspan='5'>No Received headers found.</td></tr>"
+
+        # ── Geolocation ─────────────────────────────────────────
+        geo_html = ""
+        if geo:
+            geo_rows = ""
+            for ip, info in geo:
+                if "error" in info:
+                    geo_rows += f"<tr><td class='lbl'>{esc(ip)}</td><td class='fail'>{esc(info['error'])}</td></tr>\n"
+                elif info.get("note"):
+                    geo_rows += f"<tr><td class='lbl'>{esc(ip)}</td><td class='neutral'>{esc(info['note'])}</td></tr>\n"
+                else:
+                    geo_rows += (
+                        f"<tr><td class='lbl'>{esc(ip)}</td>"
+                        f"<td>{esc(info.get('country'))} / {esc(info.get('city'))} "
+                        f"— {esc(info.get('isp'))} ({esc(info.get('asn'))})</td></tr>\n"
+                    )
+            geo_html = f"<h2>IP Geolocation</h2><table>{geo_rows}</table>"
+
+        # ── URLs ────────────────────────────────────────────────
+        url_rows = ""
+        if urls:
+            for i, u in enumerate(urls, 1):
+                mismatch = " class='fail'" if u["mismatch"] else ""
+                mm_badge = " <strong>[MISMATCH]</strong>" if u["mismatch"] else ""
+                url_rows += (
+                    f"<tr{mismatch}><td>{i}</td><td>{esc(u['url'])}</td>"
+                    f"<td>{esc(u['domain'])}</td>"
+                    f"<td>{esc(u.get('display_text'))}{mm_badge}</td></tr>\n"
+                )
+        else:
+            url_rows = "<tr><td colspan='4'>No URLs found in message body.</td></tr>"
+
+        # ── Domain reputation ───────────────────────────────────
+        domain_html = ""
+        if domain_rep:
+            if "error" in domain_rep:
+                domain_html = f"<h3>Sender Domain Reputation</h3><p class='fail'>{esc(domain_rep['error'])}</p>"
+            else:
+                young_cls = "fail" if domain_rep.get("is_young") else "pass"
+                age = domain_rep.get("domain_age_days")
+                age_str = f"{age} days" if age is not None else "&mdash;"
+                domain_html = f"""
+                <h3>Sender Domain Reputation</h3>
+                <table>
+                    <tr><td class='lbl'>Domain</td><td>{esc(domain_rep.get('domain'))}</td></tr>
+                    <tr><td class='lbl'>Registrar</td><td>{esc(domain_rep.get('registrar'))}</td></tr>
+                    <tr><td class='lbl'>Created</td><td>{esc(domain_rep.get('creation_date'))}</td></tr>
+                    <tr><td class='lbl'>Domain Age</td><td class='{young_cls}'><strong>{age_str}</strong></td></tr>
+                </table>"""
+
+        # ── Attachments ─────────────────────────────────────────
+        attach_rows = ""
+        if attachments:
+            for i, att in enumerate(attachments, 1):
+                risky_cls = " class='fail'" if att["risky"] else ""
+                badge = " <strong>[RISKY]</strong>" if att["risky"] else ""
+                attach_rows += (
+                    f"<tr{risky_cls}><td>{i}</td><td>{esc(att['filename'])}{badge}</td>"
+                    f"<td>{esc(att['mime_type'])}</td><td>{att['size']:,}</td>"
+                    f"<td style='font-family:monospace;font-size:11px'>{esc(att['md5'])}</td>"
+                    f"<td style='font-family:monospace;font-size:11px'>{esc(att['sha256'])}</td></tr>\n"
+                )
+        else:
+            attach_rows = "<tr><td colspan='6'>No attachments found.</td></tr>"
+
+        # ── Threat intel ────────────────────────────────────────
+        threat_html = ""
+        if threat_intel:
+            risk = threat_intel.get("risk", {})
+            dns_rec = threat_intel.get("dns", {})
+            patterns = threat_intel.get("patterns", {})
+            abuse = threat_intel.get("abuse", {})
+
+            # Breakdown
+            breakdown_rows = ""
+            for _, (pts, reason) in risk.get("breakdown", {}).items():
+                breakdown_rows += f"<tr><td class='fail'><strong>+{pts} pts</strong></td><td class='fail'>{esc(reason)}</td></tr>\n"
+
+            # DNS
+            dns_rows = ""
+            if dns_rec.get("error"):
+                dns_rows = f"<tr><td class='lbl'>Error</td><td class='fail'>{esc(dns_rec['error'])}</td></tr>"
+            else:
+                dns_rows += f"<tr><td class='lbl'>Domain</td><td>{esc(dns_rec.get('domain'))}</td></tr>\n"
+                for proto in ("spf", "dkim", "dmarc"):
+                    rec = dns_rec.get(proto, {})
+                    exists = rec.get("exists", False)
+                    cls = "pass" if exists else "fail"
+                    status_text = "PUBLISHED" if exists else "NOT FOUND"
+                    dns_rows += f"<tr><td class='lbl'>{proto.upper()}</td><td class='{cls}'><strong>{esc(status_text)}</strong></td></tr>\n"
+                    if rec.get("record"):
+                        record_text = rec["record"]
+                        if len(record_text) > 120:
+                            record_text = record_text[:117] + "..."
+                        dns_rows += f"<tr><td></td><td class='neutral' style='font-size:11px'>{esc(record_text)}</td></tr>\n"
+
+            # Patterns
+            pattern_rows = ""
+            total = patterns.get("total_flags", 0)
+            if total == 0:
+                pattern_rows = "<tr><td class='lbl'>Result</td><td class='pass'><strong>No suspicious language detected</strong></td></tr>"
+            else:
+                pattern_rows += f"<tr><td class='lbl'>Flags Found</td><td class='fail'><strong>{total}</strong></td></tr>\n"
+                for category, label in [("urgency", "Urgency"), ("credential", "Credential Harvesting"), ("impersonation", "Brand Impersonation")]:
+                    matches = patterns.get(category, [])
+                    if matches:
+                        pattern_rows += f"<tr><td class='lbl'>{esc(label)}</td><td class='fail'>{esc(', '.join(matches))}</td></tr>\n"
+
+            # Abuse
+            abuse_rows = ""
+            if abuse.get("error"):
+                abuse_rows = f"<tr><td class='lbl'>Status</td><td class='neutral'>{esc(abuse['error'])}</td></tr>"
+            else:
+                flagged = abuse.get("is_flagged", False)
+                cls = "fail" if flagged else "pass"
+                abuse_rows = (
+                    f"<tr><td class='lbl'>IP</td><td>{esc(abuse.get('ip'))}</td></tr>\n"
+                    f"<tr><td class='lbl'>Abuse Score</td><td class='{cls}'><strong>{abuse.get('abuse_score', 0)}%</strong></td></tr>\n"
+                    f"<tr><td class='lbl'>Total Reports</td><td>{abuse.get('total_reports', 0)}</td></tr>\n"
+                )
+                if abuse.get("isp"):
+                    abuse_rows += f"<tr><td class='lbl'>ISP</td><td>{esc(abuse['isp'])}</td></tr>\n"
+
+            threat_html = f"""
+            <h2>Threat Intelligence</h2>
+            <h3>Score Breakdown</h3>
+            <table>{breakdown_rows if breakdown_rows else "<tr><td class='pass' colspan='2'><strong>No risk factors detected</strong></td></tr>"}</table>
+            <h3>DNS Record Validation</h3>
+            <table>{dns_rows}</table>
+            <h3>Phishing Pattern Analysis</h3>
+            <table>{pattern_rows}</table>
+            <h3>AbuseIPDB Reputation</h3>
+            <table>{abuse_rows}</table>"""
+
+        # ── Assemble full HTML ──────────────────────────────────
+        return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Email Forensic Report</title>
+<style>
+  * {{ margin:0; padding:0; box-sizing:border-box; }}
+  body {{ font-family:'Segoe UI',system-ui,sans-serif; background:#0f1117; color:#e0e0e0; padding:32px; }}
+  h1 {{ color:#fff; margin-bottom:4px; }}
+  .subtitle {{ color:#95a5a6; margin-bottom:24px; font-size:14px; }}
+  h2 {{ color:#fff; margin:28px 0 10px; padding-bottom:6px; border-bottom:2px solid #333; }}
+  h3 {{ color:#bbb; margin:18px 0 6px; }}
+  table {{ width:100%; border-collapse:collapse; margin-bottom:12px; }}
+  td {{ padding:6px 10px; border-bottom:1px solid #222; vertical-align:top; font-size:13px; }}
+  .lbl {{ color:#95a5a6; width:180px; font-weight:600; white-space:nowrap; }}
+  .pass {{ color:#2ecc71; }}
+  .fail {{ color:#e74c3c; }}
+  .neutral {{ color:#95a5a6; }}
+  .risk-banner {{ text-align:center; padding:16px; border-radius:8px; margin-bottom:20px; }}
+  .risk-score {{ font-size:36px; font-weight:bold; color:#fff; margin-right:16px; }}
+  .risk-level {{ font-size:22px; font-weight:bold; color:#fff; }}
+  th {{ text-align:left; padding:6px 10px; color:#95a5a6; font-size:12px; border-bottom:2px solid #333; }}
+  tr:hover {{ background:#1a1d27; }}
+  @media print {{
+    body {{ background:#fff; color:#222; }}
+    h1, h2 {{ color:#111; }}
+    h3 {{ color:#555; }}
+    td {{ border-bottom:1px solid #ddd; }}
+    .lbl {{ color:#555; }}
+    .pass {{ color:#1a8a4a; }}
+    .fail {{ color:#c0392b; }}
+    .neutral {{ color:#666; }}
+    .risk-banner {{ print-color-adjust:exact; -webkit-print-color-adjust:exact; }}
+    tr:hover {{ background:transparent; }}
+  }}
+</style>
+</head>
+<body>
+<h1>Email Forensic Report</h1>
+<p class="subtitle">Generated {esc(timestamp)} by Email Forensic Analyzer</p>
+
+{risk_html}
+
+<h2>Email Metadata</h2>
+<table>{meta_rows}</table>
+
+{header_html}
+
+<h2>Routing Path</h2>
+<table>
+  <tr><th>Hop</th><th>From</th><th>By</th><th>IP</th><th>Timestamp</th></tr>
+  {route_rows}
+</table>
+
+<h2>Authentication</h2>
+<table>{auth_rows}</table>
+
+{geo_html}
+
+<h2>URLs &amp; Links</h2>
+<table>
+  <tr><th>#</th><th>URL</th><th>Domain</th><th>Display Text</th></tr>
+  {url_rows}
+</table>
+{domain_html}
+
+<h2>Attachments</h2>
+<table>
+  <tr><th>#</th><th>Filename</th><th>MIME Type</th><th>Size (bytes)</th><th>MD5</th><th>SHA-256</th></tr>
+  {attach_rows}
+</table>
+
+{threat_html}
+
+<hr style="margin-top:32px;border-color:#333">
+<p class="subtitle" style="margin-top:12px">End of report</p>
+</body>
+</html>"""
 
 
 if __name__ == "__main__":
