@@ -1127,6 +1127,88 @@ class EmailForensicAnalyzer:
 
         return result
 
+    # ------------------------------------------------------------------
+    # IOC extraction
+    # ------------------------------------------------------------------
+
+    def extract_iocs(
+        self,
+        *,
+        routing: list[dict] | None = None,
+        urls: list[dict] | None = None,
+        attachments: list[dict] | None = None,
+        metadata: dict | None = None,
+    ) -> dict:
+        """Aggregate all Indicators of Compromise from analysis results.
+
+        Returns a dict with keys: ips, domains, urls, emails, hashes.
+        Pure aggregation — no network calls.
+        """
+        ioc_ips: set[str] = set()
+        ioc_domains: set[str] = set()
+        ioc_urls: set[str] = set()
+        ioc_emails: set[str] = set()
+        ioc_hashes: list[dict] = []
+
+        # IPs from routing hops
+        if routing:
+            for hop in routing:
+                ip = hop.get("ip")
+                if ip:
+                    try:
+                        if ipaddress.ip_address(ip).is_global:
+                            ioc_ips.add(ip)
+                    except ValueError:
+                        pass
+
+        # X-Originating-IP
+        x_orig = self.msg.get("X-Originating-IP")
+        if x_orig:
+            cleaned = x_orig.strip().strip("[]")
+            try:
+                if ipaddress.ip_address(cleaned).is_global:
+                    ioc_ips.add(cleaned)
+            except ValueError:
+                pass
+
+        # Originating IP from routing
+        if self.originating_ip:
+            ioc_ips.add(self.originating_ip)
+
+        # URLs and domains from URL extraction
+        if urls:
+            for u in urls:
+                if u.get("url"):
+                    ioc_urls.add(u["url"])
+                if u.get("domain"):
+                    ioc_domains.add(u["domain"])
+
+        # Email addresses and domains from headers
+        for hdr_name in ("From", "To", "Reply-To", "Return-Path"):
+            raw = self.msg.get(hdr_name)
+            if raw:
+                _, addr = email.utils.parseaddr(raw)
+                if addr and "@" in addr:
+                    ioc_emails.add(addr)
+                    domain = addr.split("@", 1)[1].lower()
+                    ioc_domains.add(domain)
+
+        # File hashes from attachments
+        if attachments:
+            for att in attachments:
+                ioc_hashes.append({
+                    "filename": att["filename"],
+                    "md5": att["md5"],
+                    "sha256": att["sha256"],
+                })
+
+        return {
+            "ips": sorted(ioc_ips),
+            "domains": sorted(ioc_domains),
+            "urls": sorted(ioc_urls),
+            "emails": sorted(ioc_emails),
+            "hashes": ioc_hashes,
+        }
 
     # ------------------------------------------------------------------
     # Phase 4: HTML report generation
