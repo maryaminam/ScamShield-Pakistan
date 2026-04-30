@@ -13,6 +13,34 @@ import customtkinter as ctk
 
 from email_forensic_analyzer import EmailForensicAnalyzer
 
+
+def _load_env_file(path: str = ".env") -> dict[str, str]:
+    """Lightweight .env loader — no external dependency."""
+    env: dict[str, str] = {}
+    if not os.path.isfile(path):
+        return env
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, _, value = line.partition("=")
+                key = key.strip().lstrip("_")
+                value = value.strip().strip('"').strip("'")
+                if key and value:
+                    env[key] = value
+    except OSError:
+        pass
+    return env
+
+
+_ENV = _load_env_file(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+)
+_VT_API_KEY = _ENV.get("VT_API") or os.environ.get("VT_API")
+_ABUSEIPDB_API_KEY = _ENV.get("ABUSEIPDB_API") or os.environ.get("ABUSEIPDB_API")
+
 # ── Appearance defaults ──────────────────────────────────────────────
 ctk.set_default_color_theme("blue")
 ctk.set_appearance_mode("Dark")
@@ -64,6 +92,7 @@ class ForensicGUI(ctk.CTk):
         self._last_iocs: dict | None = None
         self._last_risk: dict | None = None
         self._last_patterns: dict | None = None
+        self._last_spoofing: dict | None = None
         self._analyzer: EmailForensicAnalyzer | None = None
         self._current_file_path: str | None = None
 
@@ -159,48 +188,6 @@ class ForensicGUI(ctk.CTk):
         )
         self._export_btn.pack(padx=16, pady=(10, 0), fill="x")
 
-        # ── Collapsible API Keys ─────────────────────────────────
-        self._api_expanded = False
-        self._api_toggle_btn = ctk.CTkButton(
-            sidebar,
-            text="\u25B6  API Keys (optional)",
-            font=ctk.CTkFont(family=_FONT_FAMILY, size=11, weight="bold"),
-            fg_color="transparent",
-            text_color=_NEUTRAL_COLOR,
-            hover_color=("gray85", "gray25"),
-            height=28,
-            anchor="w",
-            command=self._toggle_api_section,
-        )
-        self._api_toggle_btn.pack(padx=16, pady=(14, 0), fill="x")
-
-        self._api_section = ctk.CTkFrame(sidebar, fg_color="transparent")
-        # Start collapsed — don't pack yet
-
-        ctk.CTkLabel(
-            self._api_section,
-            text="VirusTotal",
-            font=ctk.CTkFont(family=_FONT_FAMILY, size=10),
-            text_color=_NEUTRAL_COLOR,
-        ).pack(padx=16, anchor="w", pady=(4, 0))
-        self._vt_key_entry = ctk.CTkEntry(
-            self._api_section, placeholder_text="VT API key", show="*", height=26,
-            font=ctk.CTkFont(family=_FONT_FAMILY, size=10),
-        )
-        self._vt_key_entry.pack(padx=16, fill="x", pady=(0, 2))
-
-        ctk.CTkLabel(
-            self._api_section,
-            text="AbuseIPDB",
-            font=ctk.CTkFont(family=_FONT_FAMILY, size=10),
-            text_color=_NEUTRAL_COLOR,
-        ).pack(padx=16, anchor="w")
-        self._abuse_key_entry = ctk.CTkEntry(
-            self._api_section, placeholder_text="AbuseIPDB API key", show="*", height=26,
-            font=ctk.CTkFont(family=_FONT_FAMILY, size=10),
-        )
-        self._abuse_key_entry.pack(padx=16, fill="x")
-
         # ── Recent Analyses ──────────────────────────────────────
         self._recent_label = ctk.CTkLabel(
             sidebar,
@@ -247,17 +234,6 @@ class ForensicGUI(ctk.CTk):
             offvalue="Dark",
         )
         self._theme_switch.pack(side="right")
-
-    def _toggle_api_section(self) -> None:
-        if self._api_expanded:
-            self._api_section.pack_forget()
-            self._api_toggle_btn.configure(text="\u25B6  API Keys (optional)")
-            self._api_expanded = False
-        else:
-            # Pack right after the toggle button
-            self._api_section.pack(after=self._api_toggle_btn, padx=0, fill="x")
-            self._api_toggle_btn.configure(text="\u25BC  API Keys (optional)")
-            self._api_expanded = True
 
     def _update_recent_analyses(
         self, name: str, path: str | None, score: int, level: str
@@ -418,6 +394,68 @@ class ForensicGUI(ctk.CTk):
 
         # Dashboard placeholder
         self._show_dashboard_placeholder()
+
+        # Keyboard shortcuts
+        self._bind_shortcuts()
+
+        # Drag-and-drop (best-effort — only if tkinterdnd2 is installed)
+        self._install_drag_and_drop()
+
+    def _bind_shortcuts(self) -> None:
+        """Wire global keyboard shortcuts."""
+        self.bind_all("<Control-o>", lambda _e: self._on_select_file())
+        self.bind_all("<Control-O>", lambda _e: self._on_select_file())
+        self.bind_all("<Control-v>", lambda _e: self._on_paste_headers())
+        self.bind_all("<Control-V>", lambda _e: self._on_paste_headers())
+        self.bind_all("<Control-e>", lambda _e: self._on_export_report())
+        self.bind_all("<Control-E>", lambda _e: self._on_export_report())
+
+        tab_names = (
+            "Dashboard", "Metadata", "Header Analysis", "Routing Path",
+            "Authentication", "Geolocation", "URLs & Links", "Attachments",
+            "Threat Intel", "IOC Export",
+        )
+        for i, name in enumerate(tab_names, start=1):
+            if i > 9:
+                break
+            key_digit = i % 10
+            self.bind_all(
+                f"<Control-Key-{key_digit}>",
+                lambda _e, n=name: self._safe_set_tab(n),
+            )
+
+    def _safe_set_tab(self, name: str) -> None:
+        try:
+            self._tabs.set(name)
+        except Exception:
+            pass
+
+    def _install_drag_and_drop(self) -> None:
+        """Enable .eml drag-and-drop if tkinterdnd2 is installed; else skip."""
+        try:
+            from tkinterdnd2 import DND_FILES, TkinterDnD  # type: ignore
+        except ImportError:
+            return
+        try:
+            # Re-tag the root so it accepts drops.
+            self.tk.call("package", "require", "tkdnd")
+            self.drop_target_register(DND_FILES)  # type: ignore[attr-defined]
+            self.dnd_bind("<<Drop>>", self._on_drop_file)  # type: ignore[attr-defined]
+        except Exception:
+            pass
+
+    def _on_drop_file(self, event) -> None:
+        raw = event.data.strip().strip("{}")
+        if not raw:
+            return
+        # Take first dropped file if multiple.
+        path = raw.split("} {")[0].strip("{}")
+        if not path.lower().endswith(".eml") and not os.path.isfile(path):
+            return
+        self._file_label.configure(
+            text=os.path.basename(path), text_color=_PASS_COLOR,
+        )
+        self._run_analysis(path)
 
     def _show_dashboard_placeholder(self) -> None:
         self._clear_frame(self._dash_frame)
@@ -695,6 +733,25 @@ class ForensicGUI(ctk.CTk):
             ),
         )
 
+        # Spoofing
+        spoofing = getattr(self, "_last_spoofing", None)
+        if spoofing is not None:
+            sev = spoofing.get("severity", "none")
+            spoof_label = {
+                "high": "SPOOFED",
+                "medium": "SUSPECT",
+                "low": "MINOR",
+                "none": "CLEAN",
+            }.get(sev, "—")
+            spoof_status = (
+                "fail" if sev == "high"
+                else "warn" if sev == "medium"
+                else "pass"
+            )
+            self._make_stat_card(
+                cards_row, "Spoofing", spoof_label, spoof_status,
+            )
+
         # ── Key Findings ────────────────────────────────────────
         self._add_section(self._dash_frame, "Key Findings")
         if risk and risk.get("breakdown"):
@@ -950,8 +1007,10 @@ class ForensicGUI(ctk.CTk):
         self._last_urls = analyzer.extract_urls()
         self._last_attachments = analyzer.extract_attachments()
 
+        self._last_spoofing = analyzer.detect_spoofing()
         self._last_header_analysis = {
             "anomalies": analyzer.detect_header_anomalies(),
+            "spoofing": self._last_spoofing,
             "timestamps": analyzer.analyze_timestamps(),
             "x_headers": analyzer.extract_x_headers(),
         }
@@ -1041,8 +1100,10 @@ class ForensicGUI(ctk.CTk):
         self._last_attachments = analyzer.extract_attachments()
 
         # Header analysis is CPU-only — no network calls, run synchronously.
+        self._last_spoofing = analyzer.detect_spoofing()
         self._last_header_analysis = {
             "anomalies": analyzer.detect_header_anomalies(),
+            "spoofing": self._last_spoofing,
             "timestamps": analyzer.analyze_timestamps(),
             "x_headers": analyzer.extract_x_headers(),
         }
@@ -1117,20 +1178,45 @@ class ForensicGUI(ctk.CTk):
 
     def _show_banner(self, auth: dict, risk: dict | None = None) -> None:
         messages: list[str] = []
-        if auth["is_suspicious"]:
-            messages.append("Authentication failures detected")
+        spoofing = getattr(self, "_last_spoofing", None)
+
+        # Severity drives the banner color (high → red, medium → orange).
+        severity = "low"
+        if spoofing and spoofing.get("severity") == "high":
+            severity = "high"
+            messages.append("Identity spoofing detected")
+        elif spoofing and spoofing.get("severity") == "medium":
+            severity = "medium"
+            messages.append("Suspicious sender identity")
+
+        if auth.get("is_suspicious"):
+            severity = "high" if severity == "high" else "high"
+            messages.append("Authentication failures")
+
         if risk and risk.get("score", 0) >= 50:
-            messages.append(
-                f"Risk score {risk['score']}/100 ({risk['level']})"
-            )
-        if messages:
-            self._banner.configure(
-                text="  WARNING  —  " + "  |  ".join(messages),
-                height=40,
-            )
-            self._banner.grid(row=0, column=0, sticky="ew", pady=(0, 6))
-        else:
+            level = risk.get("level", "")
+            if level in ("Critical", "High"):
+                severity = "high"
+            elif severity != "high":
+                severity = "medium"
+            messages.append(f"Risk {risk['score']}/100 · {level}")
+
+        if not messages:
             self._banner.grid_forget()
+            return
+
+        color_map = {
+            "high": "#c0392b",
+            "medium": "#d35400",
+            "low": "#2980b9",
+        }
+        icon = "⚠" if severity == "high" else "ⓘ"
+        self._banner.configure(
+            text=f"  {icon}  " + "   ·   ".join(messages),
+            height=40,
+            fg_color=color_map[severity],
+        )
+        self._banner.grid(row=0, column=0, sticky="ew", pady=(0, 6))
 
     def _refresh_display(self) -> None:
         """Re-render all tabs using cached data so colors match the new theme."""
@@ -1352,6 +1438,7 @@ class ForensicGUI(ctk.CTk):
         self._clear_frame(self._header_frame)
 
         anomalies = data["anomalies"]
+        spoofing = data.get("spoofing")
         timestamps = data["timestamps"]
         x_headers = data["x_headers"]
 
@@ -1376,6 +1463,59 @@ class ForensicGUI(ctk.CTk):
                 "All identity headers are consistent",
                 value_color=_PASS_COLOR, bold_value=True,
             )
+
+        # ── Spoofing detection ──────────────────────────────────
+        if spoofing:
+            self._add_section(self._header_frame, "Spoofing Detection")
+            self._add_row(
+                self._header_frame, "Display Name",
+                spoofing.get("from_display") or "—",
+            )
+            self._add_row(
+                self._header_frame, "From Address",
+                spoofing.get("from_address") or "—",
+            )
+            findings = spoofing.get("findings") or []
+            sev = spoofing.get("severity", "none")
+            if not findings:
+                self._add_row(
+                    self._header_frame, "Verdict",
+                    "No spoofing indicators detected",
+                    value_color=_PASS_COLOR, bold_value=True,
+                )
+            else:
+                verdict_color = (
+                    _FAIL_COLOR if sev == "high"
+                    else _WARN_COLOR if sev == "medium"
+                    else _NEUTRAL_COLOR
+                )
+                verdict_label = {
+                    "high": "LIKELY SPOOFED",
+                    "medium": "SUSPICIOUS",
+                    "low": "MINOR DIVERGENCE",
+                }.get(sev, "REVIEW")
+                self._add_row(
+                    self._header_frame, "Verdict", verdict_label,
+                    value_color=verdict_color, bold_value=True,
+                )
+                for f in findings:
+                    f_sev = f.get("severity", "low")
+                    color = (
+                        _FAIL_COLOR if f_sev == "high"
+                        else _WARN_COLOR if f_sev == "medium"
+                        else _NEUTRAL_COLOR
+                    )
+                    label_map = {
+                        "brand_impersonation": "Brand Impersonation",
+                        "freemail_corporate_persona": "Free-mail Persona",
+                        "reply_to_divergence": "Reply-To",
+                        "return_path_divergence": "Return-Path",
+                    }
+                    label = label_map.get(f["type"], f["type"])
+                    self._add_row(
+                        self._header_frame, label, f["message"],
+                        value_color=color, bold_value=(f_sev == "high"),
+                    )
 
         # ── Timestamp analysis ──────────────────────────────────
         self._add_section(self._header_frame, "Timestamp Analysis")
@@ -1752,7 +1892,7 @@ class ForensicGUI(ctk.CTk):
 
     # ── VirusTotal lookup (background) ─────────────────────────────
     def _start_vt_lookups(self, analyzer: "EmailForensicAnalyzer") -> None:
-        vt_key = self._vt_key_entry.get().strip() or None
+        vt_key = _VT_API_KEY
         if not vt_key or not self._last_attachments:
             return
 
@@ -1825,7 +1965,7 @@ class ForensicGUI(ctk.CTk):
     def _fetch_threat_intel(self, analyzer: "EmailForensicAnalyzer") -> None:
         dns_rec = analyzer.validate_dns_records()
         patterns = analyzer.detect_phishing_patterns()
-        abuse_key = self._abuse_key_entry.get().strip() or None
+        abuse_key = _ABUSEIPDB_API_KEY
         abuse = analyzer.check_ip_abuse(analyzer.originating_ip or "", api_key=abuse_key)
         risk = analyzer.calculate_risk_score(
             auth=self._last_auth,
@@ -1834,6 +1974,7 @@ class ForensicGUI(ctk.CTk):
             domain_rep=self._last_domain_rep,
             abuse=abuse,
             patterns=patterns,
+            spoofing=self._last_spoofing,
         )
         result = {
             "dns": dns_rec,
@@ -2071,8 +2212,10 @@ class ForensicGUI(ctk.CTk):
                 urls = analyzer.extract_urls()
                 attachments = analyzer.extract_attachments()
                 patterns = analyzer.detect_phishing_patterns()
+                spoofing = analyzer.detect_spoofing()
                 risk = analyzer.calculate_risk_score(
-                    auth=auth, urls=urls, attachments=attachments, patterns=patterns,
+                    auth=auth, urls=urls, attachments=attachments,
+                    patterns=patterns, spoofing=spoofing,
                 )
                 summaries.append({
                     "filename": filename,

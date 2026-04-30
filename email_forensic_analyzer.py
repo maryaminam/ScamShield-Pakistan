@@ -13,7 +13,6 @@ from urllib.parse import urlparse
 
 import dns.resolver
 import requests
-import whois
 from bs4 import BeautifulSoup
 
 _GEOLOCATION_API = "http://ip-api.com/json/{ip}?fields=status,message,country,city,isp,as"
@@ -115,15 +114,64 @@ _MAX_HOP_DELTA_SECONDS = 4 * 3600
 
 # Risk-score weights (0–100 total budget).
 _WEIGHTS = {
-    "auth_fail": 25,       # any SPF/DKIM/DMARC fail or softfail
-    "url_mismatch": 20,    # display/href domain mismatch
-    "risky_attachment": 15, # dangerous file extension
-    "young_domain": 15,    # sender domain < 30 days old
-    "abuse_ip": 10,        # originating IP flagged on AbuseIPDB
-    "urgency_lang": 5,     # urgency phrases in subject/body
-    "credential_lang": 5,  # credential-harvesting phrases
-    "impersonation": 5,    # brand impersonation keywords
+    "auth_fail": 22,       # any SPF/DKIM/DMARC fail or softfail
+    "spoofing": 20,        # display-name / Reply-To / Return-Path spoofing
+    "url_mismatch": 18,    # display/href domain mismatch
+    "risky_attachment": 13, # dangerous file extension
+    "young_domain": 12,    # sender domain < 30 days old
+    "abuse_ip": 8,         # originating IP flagged on AbuseIPDB
+    "urgency_lang": 3,     # urgency phrases in subject/body
+    "credential_lang": 2,  # credential-harvesting phrases
+    "impersonation": 2,    # brand impersonation keywords
 }
+
+# Brand → set of legitimate sender domain suffixes. Used by detect_spoofing()
+# to flag display names that impersonate a brand from a domain not on its list.
+_BRAND_DOMAINS = {
+    "paypal": {"paypal.com", "paypal.co.uk", "paypal-mail.com", "paypal.de"},
+    "microsoft": {"microsoft.com", "outlook.com", "office365.com", "office.com",
+                  "live.com", "hotmail.com", "azure.com", "microsoftonline.com"},
+    "apple": {"apple.com", "icloud.com", "me.com", "mac.com"},
+    "google": {"google.com", "gmail.com", "googlemail.com", "youtube.com"},
+    "amazon": {"amazon.com", "amazon.co.uk", "amazon.de", "amazonses.com",
+               "amazon.in", "amazon.ca", "aws.amazon.com"},
+    "netflix": {"netflix.com", "mailer.netflix.com"},
+    "facebook": {"facebook.com", "facebookmail.com", "meta.com"},
+    "instagram": {"instagram.com", "mail.instagram.com"},
+    "whatsapp": {"whatsapp.com", "support.whatsapp.com"},
+    "linkedin": {"linkedin.com", "linkedinmail.com"},
+    "dropbox": {"dropbox.com", "dropboxmail.com"},
+    "github": {"github.com", "githubapp.com"},
+    "dhl": {"dhl.com", "dhl.de"},
+    "fedex": {"fedex.com"},
+    "ups": {"ups.com"},
+    "irs": {"irs.gov"},
+    "hmrc": {"hmrc.gov.uk", "tax.service.gov.uk"},
+    "chase": {"chase.com", "jpmorgan.com"},
+    "wells fargo": {"wellsfargo.com"},
+    "bank of america": {"bankofamerica.com", "bofa.com"},
+}
+
+# Free webmail providers — corporate-sounding display names from these are
+# almost always phishing.
+_FREE_MAIL_PROVIDERS = {
+    "gmail.com", "googlemail.com", "yahoo.com", "yahoo.co.uk", "ymail.com",
+    "hotmail.com", "outlook.com", "live.com", "msn.com", "aol.com",
+    "icloud.com", "me.com", "mac.com", "proton.me", "protonmail.com",
+    "tutanota.com", "gmx.com", "gmx.de", "yandex.com", "yandex.ru",
+    "mail.com", "zoho.com", "fastmail.com", "163.com", "qq.com",
+}
+
+# Display-name terms that imply a corporate/official sender — suspicious from
+# a free webmail provider.
+_CORPORATE_DISPLAY_TERMS = re.compile(
+    r"\b(support|helpdesk|help\s*desk|service|services|admin|administrator"
+    r"|security|account|accounts|billing|payroll|hr|human\s*resources"
+    r"|it\s*(team|department|support|admin)|tech\s*support|customer\s*(care|service)"
+    r"|notification|noreply|no-reply|alerts?|team|department"
+    r"|ceo|cfo|cto|director|manager)\b",
+    re.IGNORECASE,
+)
 
 
 class EmailForensicAnalyzer:
@@ -538,7 +586,10 @@ class EmailForensicAnalyzer:
             domain = from_header[at_pos + 1 :].strip().rstrip(">").lower()
 
         try:
-            w = whois.whois(domain)
+            # Import lazily to avoid hard failure when optional deps are missing
+            # in the currently selected editor environment.
+            whois_module = __import__("whois")
+            w = whois_module.whois(domain)
         except Exception as exc:
             return {"domain": domain, "error": f"WHOIS lookup failed: {exc}"}
 
@@ -848,6 +899,7 @@ class EmailForensicAnalyzer:
         domain_rep: dict | None = None,
         abuse: dict | None = None,
         patterns: dict | None = None,
+        spoofing: dict | None = None,
     ) -> dict:
         """Compute a weighted risk score from all available analysis results.
 
@@ -870,9 +922,23 @@ class EmailForensicAnalyzer:
             attachments = self.extract_attachments()
         if patterns is None:
             patterns = self.detect_phishing_patterns()
+        if spoofing is None:
+            spoofing = self.detect_spoofing()
 
         score = 0
         breakdown: dict[str, tuple[int, str]] = {}
+
+        # 0. Identity spoofing (display-name / Reply-To / Return-Path)
+        if spoofing.get("is_spoofed"):
+            sev = spoofing.get("severity", "medium")
+            pts = _WEIGHTS["spoofing"] if sev == "high" else _WEIGHTS["spoofing"] // 2
+            score += pts
+            top_msg = next(
+                (f["message"] for f in spoofing.get("findings", [])
+                 if f["severity"] == sev),
+                "Identity spoofing indicators present",
+            )
+            breakdown["spoofing"] = (pts, top_msg)
 
         # 1. Authentication failures
         if auth.get("is_suspicious"):
@@ -1026,6 +1092,159 @@ class EmailForensicAnalyzer:
             "domains": domains,
             "anomalies": anomalies,
             "is_anomalous": len(anomalies) > 0,
+        }
+
+    def detect_spoofing(self) -> dict:
+        """Detect identity-spoofing tells in the From / Reply-To / Return-Path.
+
+        Three independent checks:
+
+        1. **Display-name brand impersonation** — the From display name
+           contains a brand keyword (e.g. "Microsoft Support") but the
+           email address is not on that brand's known sender domains.
+        2. **Free-mail with corporate display name** — sender uses a
+           public webmail provider (gmail/yahoo/outlook/...) but presents
+           a corporate role display name (Support, Admin, Security, etc.).
+        3. **Reply-To / Return-Path divergence** — surfaces these as
+           explicit verdicts (low / medium / high severity) rather than
+           just listing the mismatch.
+
+        Returns:
+            A dict with:
+                - from_display    : str | None
+                - from_address    : str | None
+                - from_domain     : str | None
+                - reply_to        : str | None
+                - return_path     : str | None
+                - findings        : list[{type, severity, message}]
+                - severity        : "high" | "medium" | "low" | "none"
+                - is_spoofed      : bool — True for medium+ findings
+        """
+        from_hdr = self.msg.get("From") or ""
+        reply_to_hdr = self.msg.get("Reply-To") or ""
+        return_path_hdr = self.msg.get("Return-Path") or ""
+
+        display_name, addr = email.utils.parseaddr(from_hdr)
+        from_addr = addr.lower() if addr else None
+        from_domain = from_addr.split("@", 1)[1] if from_addr and "@" in from_addr else None
+        display_name = (display_name or "").strip()
+
+        _, reply_addr = email.utils.parseaddr(reply_to_hdr)
+        reply_addr = reply_addr.lower() if reply_addr else None
+        reply_domain = (
+            reply_addr.split("@", 1)[1] if reply_addr and "@" in reply_addr else None
+        )
+
+        # Return-Path may be "<>" or "<addr@domain>"
+        rp_clean = return_path_hdr.strip().strip("<>").lower()
+        return_domain = rp_clean.split("@", 1)[1] if rp_clean and "@" in rp_clean else None
+
+        findings: list[dict] = []
+
+        def _suffix_match(domain: str, allowed: set[str]) -> bool:
+            return any(domain == d or domain.endswith("." + d) for d in allowed)
+
+        # 1. Brand impersonation in display name.
+        if display_name and from_domain:
+            dn_lower = display_name.lower()
+            for brand, legit_domains in _BRAND_DOMAINS.items():
+                if brand in dn_lower:
+                    if not _suffix_match(from_domain, legit_domains):
+                        findings.append({
+                            "type": "brand_impersonation",
+                            "severity": "high",
+                            "message": (
+                                f"Display name claims \"{brand.title()}\" but "
+                                f"From domain is {from_domain} — not a known "
+                                f"{brand.title()} sender."
+                            ),
+                        })
+                        break  # one brand finding is enough
+
+        # 2. Free-mail provider with corporate-role display name.
+        if from_domain and from_domain in _FREE_MAIL_PROVIDERS and display_name:
+            if _CORPORATE_DISPLAY_TERMS.search(display_name):
+                findings.append({
+                    "type": "freemail_corporate_persona",
+                    "severity": "high",
+                    "message": (
+                        f"Corporate-style display name \"{display_name}\" "
+                        f"sent from public webmail ({from_domain})."
+                    ),
+                })
+
+        # 3. Reply-To divergence — explicit verdict.
+        if reply_domain and from_domain and reply_domain != from_domain:
+            same_org = (
+                reply_domain.endswith("." + from_domain)
+                or from_domain.endswith("." + reply_domain)
+            )
+            if same_org:
+                sev = "low"
+                msg = (
+                    f"Reply-To ({reply_domain}) is a subdomain of From "
+                    f"({from_domain}) — likely benign."
+                )
+            elif reply_domain in _FREE_MAIL_PROVIDERS \
+                    and from_domain not in _FREE_MAIL_PROVIDERS:
+                sev = "high"
+                msg = (
+                    f"Reply-To redirects replies to free webmail "
+                    f"({reply_domain}) while From claims {from_domain}."
+                )
+            else:
+                sev = "medium"
+                msg = (
+                    f"Reply-To ({reply_domain}) differs from From "
+                    f"({from_domain}) — replies will not reach the apparent sender."
+                )
+            findings.append({
+                "type": "reply_to_divergence",
+                "severity": sev,
+                "message": msg,
+            })
+
+        # 4. Return-Path divergence — explicit verdict.
+        if return_domain and from_domain and return_domain != from_domain:
+            # Same org / parent domain — common for ESPs (e.g. mailgun bounces).
+            same_org = (
+                return_domain.endswith("." + from_domain)
+                or from_domain.endswith("." + return_domain)
+            )
+            if same_org:
+                sev = "low"
+                msg = (
+                    f"Return-Path ({return_domain}) is related to From "
+                    f"({from_domain}) — typical ESP bounce setup."
+                )
+            else:
+                sev = "medium"
+                msg = (
+                    f"Return-Path ({return_domain}) differs from From "
+                    f"({from_domain}) — bounces go elsewhere; possible spoof."
+                )
+            findings.append({
+                "type": "return_path_divergence",
+                "severity": sev,
+                "message": msg,
+            })
+
+        # Roll-up severity.
+        sev_rank = {"high": 3, "medium": 2, "low": 1, "none": 0}
+        top = "none"
+        for f in findings:
+            if sev_rank[f["severity"]] > sev_rank[top]:
+                top = f["severity"]
+
+        return {
+            "from_display": display_name or None,
+            "from_address": from_addr,
+            "from_domain": from_domain,
+            "reply_to": reply_addr,
+            "return_path": rp_clean or None,
+            "findings": findings,
+            "severity": top,
+            "is_spoofed": top in ("high", "medium"),
         }
 
     def analyze_timestamps(self) -> dict:
