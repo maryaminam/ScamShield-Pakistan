@@ -7,6 +7,7 @@ import email.utils
 import hashlib
 import ipaddress
 import re
+import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
@@ -120,9 +121,9 @@ _WEIGHTS = {
     "risky_attachment": 13, # dangerous file extension
     "young_domain": 12,    # sender domain < 30 days old
     "abuse_ip": 8,         # originating IP flagged on AbuseIPDB
-    "urgency_lang": 3,     # urgency phrases in subject/body
-    "credential_lang": 2,  # credential-harvesting phrases
-    "impersonation": 2,    # brand impersonation keywords
+    "urgency_lang": 20,     # urgency phrases in subject/body
+    "credential_lang": 40,  # credential-harvesting phrases
+    "impersonation": 10,    # brand impersonation keywords
 }
 
 # Brand → set of legitimate sender domain suffixes. Used by detect_spoofing()
@@ -172,6 +173,22 @@ _CORPORATE_DISPLAY_TERMS = re.compile(
     r"|ceo|cfo|cto|director|manager)\b",
     re.IGNORECASE,
 )
+
+# Tokens of length ≥ 2 made of letters (incl. Latin-1 supplement / Latin-Extended).
+# Used to split a display name like "Dr. José A. Smith-Jones" into name parts.
+_NAME_TOKEN_RE = re.compile(r"[A-Za-zÀ-ɏ]{2,}")
+
+# Honorifics, particles, and stop-words to ignore when comparing display names
+# against email local-parts. Anything in this set is dropped before matching.
+_NAME_NOISE_TOKENS = frozenset({
+    "mr", "mrs", "ms", "miss", "mx", "dr", "prof", "sir", "madam", "rev",
+    "the", "and", "of", "via", "from", "der", "den", "van", "von", "de",
+    "la", "le", "el", "al", "bin", "ibn", "abu",
+})
+
+# Minimum token length required for a "substring inside local-part" match.
+# Anything shorter (e.g. "li", "an") is rejected to avoid coincidental hits.
+_NAME_TOKEN_MIN_MATCH_LEN = 3
 
 
 class EmailForensicAnalyzer:
@@ -1094,10 +1111,65 @@ class EmailForensicAnalyzer:
             "is_anomalous": len(anomalies) > 0,
         }
 
+    @staticmethod
+    def _normalize_name_tokens(text: str) -> set[str]:
+        """Tokenize a personal-name string for comparison.
+
+        Strips diacritics ('José' → 'jose'), lowercases, splits on
+        non-letters, and drops honorifics / particles listed in
+        ``_NAME_NOISE_TOKENS``.
+        """
+        if not text:
+            return set()
+        decomposed = unicodedata.normalize("NFKD", text)
+        ascii_text = "".join(
+            ch for ch in decomposed if not unicodedata.combining(ch)
+        )
+        tokens = {t.lower() for t in _NAME_TOKEN_RE.findall(ascii_text)}
+        return tokens - _NAME_NOISE_TOKENS
+
+    @staticmethod
+    def _local_part_matches_name(local_part: str, name_tokens: set[str]) -> bool:
+        """Heuristic: does the email local-part plausibly belong to ``name_tokens``?
+
+        A token "matches" when either:
+            * it appears as a substring of the letters-only local-part
+              (covers ``john.smith``, ``jsmith``, ``john_smith2003``,
+              ``smithjohn``); OR
+            * its first letter appears alongside a full match of another
+              token from the same name (covers ``j.smith``, ``jsmith``,
+              ``smith.j``).
+        """
+        if not name_tokens or not local_part:
+            return False
+        cleaned = re.sub(r"[^a-z]", "", local_part.lower())
+        if not cleaned:
+            return False
+
+        full_matches = {
+            t for t in name_tokens
+            if len(t) >= _NAME_TOKEN_MIN_MATCH_LEN and t in cleaned
+        }
+        if full_matches:
+            return True
+
+        # Initial + sibling-token match (e.g. "j" alongside "smith").
+        for tok in name_tokens:
+            initial = tok[0]
+            if initial not in cleaned:
+                continue
+            siblings = name_tokens - {tok}
+            if any(
+                len(s) >= _NAME_TOKEN_MIN_MATCH_LEN and s in cleaned
+                for s in siblings
+            ):
+                return True
+        return False
+
     def detect_spoofing(self) -> dict:
         """Detect identity-spoofing tells in the From / Reply-To / Return-Path.
 
-        Three independent checks:
+        Four independent checks:
 
         1. **Display-name brand impersonation** — the From display name
            contains a brand keyword (e.g. "Microsoft Support") but the
@@ -1105,7 +1177,11 @@ class EmailForensicAnalyzer:
         2. **Free-mail with corporate display name** — sender uses a
            public webmail provider (gmail/yahoo/outlook/...) but presents
            a corporate role display name (Support, Admin, Security, etc.).
-        3. **Reply-To / Return-Path divergence** — surfaces these as
+        3. **Display-name vs. local-part mismatch** — a personal name in
+           the display field that has no token in common with the email
+           local-part (e.g. "Maryam Inam" sent from
+           ``zainabshehzad2003@gmail.com``). Classic friendly-from spoof.
+        4. **Reply-To / Return-Path divergence** — surfaces these as
            explicit verdicts (low / medium / high severity) rather than
            just listing the mismatch.
 
@@ -1173,7 +1249,36 @@ class EmailForensicAnalyzer:
                     ),
                 })
 
-        # 3. Reply-To divergence — explicit verdict.
+        # 3. Display-name vs. local-part mismatch (friendly-from spoof).
+        # Skipped when branch 1 or 2 already classified this sender, since
+        # those branches describe a stronger, more specific impersonation.
+        already_classified = any(
+            f["type"] in ("brand_impersonation", "freemail_corporate_persona")
+            for f in findings
+        )
+        if (
+            not already_classified
+            and display_name
+            and from_addr
+            and "@" in from_addr
+            and not _CORPORATE_DISPLAY_TERMS.search(display_name)
+        ):
+            name_tokens = self._normalize_name_tokens(display_name)
+            local_part = from_addr.split("@", 1)[0]
+            if name_tokens and not self._local_part_matches_name(
+                local_part, name_tokens
+            ):
+                findings.append({
+                    "type": "display_name_mismatch",
+                    "severity": "medium",
+                    "message": (
+                        f"Display name \"{display_name}\" does not match "
+                        f"the email local-part \"{local_part}\" — "
+                        f"possible friendly-from spoof."
+                    ),
+                })
+
+        # 4. Reply-To divergence — explicit verdict.
         if reply_domain and from_domain and reply_domain != from_domain:
             same_org = (
                 reply_domain.endswith("." + from_domain)
@@ -1204,7 +1309,7 @@ class EmailForensicAnalyzer:
                 "message": msg,
             })
 
-        # 4. Return-Path divergence — explicit verdict.
+        # 5. Return-Path divergence — explicit verdict.
         if return_domain and from_domain and return_domain != from_domain:
             # Same org / parent domain — common for ESPs (e.g. mailgun bounces).
             same_org = (

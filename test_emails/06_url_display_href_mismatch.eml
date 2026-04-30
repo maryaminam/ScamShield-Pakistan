@@ -1,0 +1,21 @@
+Return-Path: <noreply@bank-update.xyz>
+Received: from sender.bank-update.xyz (104.21.55.12)
+	by mx.company.com (Postfix) with ESMTPS id 3322GGHH
+	for <victim@company.com>; Tue, 28 Apr 2026 15:15:00 +0000 (UTC)
+Authentication-Results: mx.company.com;
+	spf=pass smtp.mailfrom=bank-update.xyz;
+	dkim=none;
+	dmarc=none
+Message-ID: <urlmm-006@bank-update.xyz>
+Date: Tue, 28 Apr 2026 15:15:00 +0000
+From: "Chase Online" <noreply@bank-update.xyz>
+To: victim@company.com
+Subject: Confirm your recent transaction
+MIME-Version: 1.0
+Content-Type: text/html; charset=utf-8
+
+<html><body>
+<p>Please verify the link below points to Chase:</p>
+<p><a href="http://malicious-credential-stealer.ru/login">https://www.chase.com/secure-login</a></p>
+<p>Or visit <a href="https://evil-tracker.tk/click?u=42">https://www.chase.com/help</a></p>
+</body></html>

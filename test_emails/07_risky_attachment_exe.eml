@@ -1,0 +1,30 @@
+Return-Path: <invoices@billing-portal.top>
+Received: from billing-portal.top (193.142.30.77)
+	by mx.company.com (Postfix) with ESMTP id 1100IIJJ
+	for <victim@company.com>; Tue, 28 Apr 2026 16:20:00 +0000 (UTC)
+Authentication-Results: mx.company.com;
+	spf=softfail smtp.mailfrom=billing-portal.top;
+	dkim=none;
+	dmarc=fail header.from=billing-portal.top
+Message-ID: <attach-007@billing-portal.top>
+Date: Tue, 28 Apr 2026 16:20:00 +0000
+From: "Accounts Receivable" <invoices@billing-portal.top>
+To: victim@company.com
+Subject: Invoice #INV-2026-04421 attached
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="BOUND001"
+
+--BOUND001
+Content-Type: text/plain; charset=utf-8
+
+Please find the invoice attached. Open it for payment details.
+
+--BOUND001
+Content-Type: application/octet-stream; name="Invoice_April.pdf.exe"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="Invoice_April.pdf.exe"
+
+TVqQAAMAAAAEAAAA//8AALgAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAgAAAAA4fug4AtAnNIbgBTM0hVGhpcyBwcm9ncmFtIGNhbm5v
+dCBiZSBydW4gaW4gRE9TIG1vZGUuDQ0KJAAAAAAAAAA=
+--BOUND001--

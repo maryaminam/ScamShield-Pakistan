@@ -1,0 +1,24 @@
+Return-Path: <ceo@company.com>
+Received: from mail.company.com (203.0.113.10)
+	by mx.partner.com (Postfix) with ESMTPS id 5544EEFF
+	for <accounts@partner.com>; Tue, 28 Apr 2026 14:10:00 +0000 (UTC)
+Authentication-Results: mx.partner.com;
+	spf=pass smtp.mailfrom=company.com;
+	dkim=pass header.d=company.com;
+	dmarc=pass header.from=company.com
+Message-ID: <ceo-fraud-005@company.com>
+Date: Tue, 28 Apr 2026 14:10:00 +0000
+From: "John Smith, CEO" <ceo@company.com>
+Reply-To: john.smith.ceo.private@gmail.com
+To: accounts@partner.com
+Subject: Quick wire transfer needed
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+
+Hi,
+
+I need you to process a wire transfer urgently. Reply to my private address
+above so we can move quickly. Do not call my office.
+
+Regards,
+John

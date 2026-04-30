@@ -1,0 +1,20 @@
+Return-Path: <support@brand-new-domain-2026-test.com>
+Received: from brand-new-domain-2026-test.com (192.0.2.55)
+	by mx.company.com (Postfix) with ESMTPS id 5566TTUU
+	for <victim@company.com>; Tue, 28 Apr 2026 19:00:00 +0000 (UTC)
+Authentication-Results: mx.company.com;
+	spf=pass smtp.mailfrom=brand-new-domain-2026-test.com;
+	dkim=none;
+	dmarc=none
+Message-ID: <young-011@brand-new-domain-2026-test.com>
+Date: Tue, 28 Apr 2026 19:00:00 +0000
+From: "Customer Support" <support@brand-new-domain-2026-test.com>
+To: victim@company.com
+Subject: Welcome - confirm your account
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+
+Welcome. Confirm your account by clicking the link in our website.
+
+(WHOIS lookup on this domain triggers the "young domain" risk signal
+when the domain age is < 30 days.)

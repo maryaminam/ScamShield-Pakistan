@@ -1,0 +1,25 @@
+Return-Path: <newsletter@github.com>
+Received: from mail-edge.github.com (mail-edge.github.com [192.30.252.196])
+	by mx.company.com (Postfix) with ESMTPS id A1B2C3D4
+	for <user@company.com>; Tue, 28 Apr 2026 10:15:33 +0000 (UTC)
+Authentication-Results: mx.company.com;
+	spf=pass smtp.mailfrom=github.com;
+	dkim=pass header.d=github.com;
+	dmarc=pass header.from=github.com
+Received-SPF: pass (github.com: domain of newsletter@github.com designates 192.30.252.196 as permitted sender)
+DKIM-Signature: v=1; a=rsa-sha256; d=github.com; s=pf2014;
+	c=relaxed/relaxed; q=dns/txt; h=From:Subject:Date:To;
+	bh=abc123==; b=xyz==
+Message-ID: <CA+legit-001@github.com>
+Date: Tue, 28 Apr 2026 10:15:30 +0000
+From: GitHub <newsletter@github.com>
+To: user@company.com
+Subject: Your weekly digest is ready
+MIME-Version: 1.0
+Content-Type: text/html; charset=utf-8
+
+<html><body>
+<p>Hi user, here is your weekly summary.</p>
+<p><a href="https://github.com/notifications">View your notifications</a></p>
+<p>The GitHub Team</p>
+</body></html>

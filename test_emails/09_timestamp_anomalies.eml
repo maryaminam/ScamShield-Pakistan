@@ -1,0 +1,24 @@
+Return-Path: <weird@time-traveler.net>
+Received: from final-relay.company.com (10.0.0.5)
+	by mx.victim.com (Postfix) with ESMTPS id 7766MMNN
+	for <victim@victim.com>; Wed, 29 Apr 2026 02:00:00 +0000 (UTC)
+Received: from middle-relay.example.org (198.51.100.20)
+	by final-relay.company.com (Postfix) with ESMTP id 5544OOPP;
+	Tue, 28 Apr 2026 21:00:00 +0000 (UTC)
+Received: from origin.time-traveler.net (203.0.113.99)
+	by middle-relay.example.org (Postfix) with SMTP id 3322QQRR;
+	Tue, 28 Apr 2026 22:00:00 +0000 (UTC)
+Authentication-Results: mx.victim.com;
+	spf=none;
+	dkim=none;
+	dmarc=none
+Message-ID: <timetravel-009@time-traveler.net>
+Date: Sat, 31 Dec 2050 00:00:00 +0000
+From: "Future Sender" <weird@time-traveler.net>
+To: victim@victim.com
+Subject: Greetings from the future
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+
+This message has hop 2 dated BEFORE hop 1 (time-travel),
+a 5-hour gap to hop 3 (excessive delay), and a Date header in 2050.

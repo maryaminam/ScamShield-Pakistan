@@ -1,0 +1,18 @@
+Return-Path: <bounce@spoofed-sender.tk>
+Received: from unknown-host.ru (185.220.101.45)
+	by mx.company.com (Postfix) with SMTP id F1E2D3C4
+	for <victim@company.com>; Tue, 28 Apr 2026 11:20:10 +0000 (UTC)
+Authentication-Results: mx.company.com;
+	spf=fail smtp.mailfrom=spoofed-sender.tk;
+	dkim=fail (signature did not verify) header.d=spoofed-sender.tk;
+	dmarc=fail header.from=microsoft.com
+Received-SPF: fail (mx.company.com: domain of spoofed-sender.tk does not designate 185.220.101.45 as permitted sender)
+Message-ID: <fake-002@spoofed-sender.tk>
+Date: Tue, 28 Apr 2026 11:20:00 +0000
+From: Microsoft Account <security@microsoft.com>
+To: victim@company.com
+Subject: Sign-in attempt blocked
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+
+We blocked a sign-in attempt. Please review your account activity.

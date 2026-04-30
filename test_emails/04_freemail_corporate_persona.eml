@@ -1,0 +1,21 @@
+Return-Path: <itsupport.helpdesk2026@gmail.com>
+Received: from mail-sor-f41.google.com (209.85.220.41)
+	by mx.company.com (Postfix) with ESMTPS id 7766CCDD
+	for <employee@company.com>; Tue, 28 Apr 2026 13:05:22 +0000 (UTC)
+Authentication-Results: mx.company.com;
+	spf=pass smtp.mailfrom=gmail.com;
+	dkim=pass header.d=gmail.com;
+	dmarc=pass header.from=gmail.com
+Message-ID: <freemail-004@mail.gmail.com>
+Date: Tue, 28 Apr 2026 13:05:00 +0000
+From: "IT Support Helpdesk" <itsupport.helpdesk2026@gmail.com>
+To: employee@company.com
+Subject: Mailbox quota update required
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+
+Hello,
+
+Your mailbox is full. Please confirm your password to keep receiving mail.
+
+IT Support Team

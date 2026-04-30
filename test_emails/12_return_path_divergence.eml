@@ -1,0 +1,20 @@
+Return-Path: <bounces@third-party-bounce-collector.ru>
+Received: from sender.legitlooking.com (198.51.100.30)
+	by mx.company.com (Postfix) with ESMTPS id 8899VVWW
+	for <victim@company.com>; Tue, 28 Apr 2026 20:10:00 +0000 (UTC)
+Authentication-Results: mx.company.com;
+	spf=pass smtp.mailfrom=third-party-bounce-collector.ru;
+	dkim=pass header.d=legitlooking.com;
+	dmarc=fail header.from=legitlooking.com
+Message-ID: <retpath-012@legitlooking.com>
+Date: Tue, 28 Apr 2026 20:10:00 +0000
+From: "Account Notifications" <notify@legitlooking.com>
+To: victim@company.com
+Subject: Statement available
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+
+Your monthly statement is available.
+
+(Return-Path domain differs from From domain and is not a related ESP -
+triggers the return_path_divergence finding.)

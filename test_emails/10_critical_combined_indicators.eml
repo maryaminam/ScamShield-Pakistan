@@ -1,0 +1,40 @@
+Return-Path: <bounce@malicious-bounces.ru>
+Received: from sketchy-host.ru (185.220.101.45)
+	by mx.company.com (Postfix) with SMTP id AABBCCDD
+	for <victim@company.com>; Tue, 28 Apr 2026 18:45:00 +0000 (UTC)
+X-Originating-IP: [185.220.101.45]
+X-Mailer: PHPMailer 6.5.0
+X-Spam-Score: 9.8
+X-Spam-Flag: YES
+Authentication-Results: mx.company.com;
+	spf=fail smtp.mailfrom=malicious-bounces.ru;
+	dkim=fail header.d=apple-id-verify.tk;
+	dmarc=fail header.from=apple-id-verify.tk
+Received-SPF: fail (mx.company.com: 185.220.101.45 not permitted)
+Message-ID: <critical-010@apple-id-verify.tk>
+Date: Tue, 28 Apr 2026 18:45:00 +0000
+From: "Apple Support Team" <noreply@apple-id-verify.tk>
+Reply-To: collect.victim.creds@gmail.com
+To: victim@company.com
+Subject: URGENT: Your Apple ID has been locked - verify password immediately
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="CRITBOUND"
+
+--CRITBOUND
+Content-Type: text/html; charset=utf-8
+
+<html><body>
+<p>FINAL WARNING - your Apple ID is suspended due to unusual activity.</p>
+<p>You must verify your password, credit card and CVV within 24 hours.</p>
+<p><a href="http://credential-harvest.ru/applelogin">https://appleid.apple.com/account/verify</a></p>
+<p>Click here immediately - this is your last chance.</p>
+</body></html>
+
+--CRITBOUND
+Content-Type: application/octet-stream; name="AppleID_Verification.pdf.scr"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="AppleID_Verification.pdf.scr"
+
+TVqQAAMAAAAEAAAA//8AALgAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAgAAAAA4fug4AtAnNIbgBTM0hVGhpcw==
+--CRITBOUND--
