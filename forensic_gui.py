@@ -43,16 +43,22 @@ _ABUSEIPDB_API_KEY = _ENV.get("ABUSEIPDB_API") or os.environ.get("ABUSEIPDB_API"
 
 # ── Appearance defaults ──────────────────────────────────────────────
 ctk.set_default_color_theme("blue")
-ctk.set_appearance_mode("Dark")
+ctk.set_appearance_mode("Light")
 
 _FONT_FAMILY = "Segoe UI"
 
+# Brand palette
+_PALETTE_SAND     = "#F2EAE0"   # warm sand — card/canvas background
+_PALETTE_TEAL     = "#B4D3D9"   # sky teal  — safe / pass
+_PALETTE_LAVENDER = "#BDA6CE"   # lavender  — neutral / secondary accent
+_PALETTE_VIOLET   = "#9B8EC7"   # deep violet — primary accent / headings
+
 # Theme-aware color tuples: (light_mode, dark_mode)
-_PASS_COLOR = ("#1a8a4a", "#2ecc71")
-_FAIL_COLOR = ("#c0392b", "#e74c3c")
-_WARN_COLOR = ("#b87c10", "#f39c12")
-_NEUTRAL_COLOR = ("#5a6368", "#95a5a6")
-_BANNER_BG = "#c0392b"
+_PASS_COLOR    = ("#2a7a8a", _PALETTE_TEAL)
+_FAIL_COLOR    = ("#a05050", "#e8a8a8")
+_WARN_COLOR    = ("#9a6e20", "#d4a840")
+_NEUTRAL_COLOR = ("#6a5e88", _PALETTE_LAVENDER)
+_BANNER_BG     = "#a05050"
 
 
 def _status_color(status: str | None) -> tuple[str, str]:
@@ -75,6 +81,7 @@ class ForensicGUI(ctk.CTk):
         self.title("Email Forensic Analyzer")
         self.geometry("960x680")
         self.minsize(800, 560)
+        self.configure(fg_color=(_PALETTE_SAND, "#1e1c2a"))
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(1, weight=1)
 
@@ -112,31 +119,44 @@ class ForensicGUI(ctk.CTk):
 
     # ── Sidebar ──────────────────────────────────────────────────────
     def _build_sidebar(self) -> None:
-        self._sidebar = ctk.CTkFrame(self, width=220, corner_radius=0)
+        self._sidebar = ctk.CTkFrame(
+            self, width=224, corner_radius=0,
+            fg_color=(_PALETTE_SAND, "#1e1c2a"),
+        )
         self._sidebar.grid(row=0, column=0, rowspan=2, sticky="nsw")
         self._sidebar.grid_propagate(False)
         sidebar = self._sidebar
+
+        # Top accent stripe
+        ctk.CTkFrame(
+            sidebar, height=4, corner_radius=0,
+            fg_color=(_PALETTE_VIOLET, _PALETTE_LAVENDER),
+        ).pack(fill="x")
 
         # App title
         ctk.CTkLabel(
             sidebar,
             text="Email Forensic\nAnalyzer",
             font=ctk.CTkFont(family=_FONT_FAMILY, size=20, weight="bold"),
-        ).pack(padx=20, pady=(24, 2))
+            text_color=(_PALETTE_VIOLET, _PALETTE_LAVENDER),
+        ).pack(padx=20, pady=(20, 2))
 
         ctk.CTkLabel(
             sidebar,
             text="Phishing Investigation Tool",
             font=ctk.CTkFont(family=_FONT_FAMILY, size=11),
             text_color=_NEUTRAL_COLOR,
-        ).pack(padx=20, pady=(0, 20))
+        ).pack(padx=20, pady=(0, 18))
 
-        # File picker
+        # File picker (primary \u2014 filled violet)
         self._file_btn = ctk.CTkButton(
             sidebar,
             text="\u2709  Select .eml File",
             font=ctk.CTkFont(family=_FONT_FAMILY, size=13, weight="bold"),
-            height=38,
+            height=40,
+            corner_radius=10,
+            fg_color=(_PALETTE_VIOLET, "#7a6eb0"),
+            hover_color=("#7a6eb0", "#6a5ea0"),
             command=self._on_select_file,
         )
         self._file_btn.pack(padx=16, fill="x")
@@ -146,7 +166,7 @@ class ForensicGUI(ctk.CTk):
             text="No file loaded",
             font=ctk.CTkFont(family=_FONT_FAMILY, size=10),
             text_color=_NEUTRAL_COLOR,
-            wraplength=180,
+            wraplength=184,
         )
         self._file_label.pack(padx=16, pady=(4, 0))
 
@@ -156,12 +176,15 @@ class ForensicGUI(ctk.CTk):
             text="\u270F  Paste Headers",
             font=ctk.CTkFont(family=_FONT_FAMILY, size=12),
             height=34,
+            corner_radius=10,
             fg_color="transparent",
-            border_width=2,
-            text_color=("gray10", "gray90"),
+            border_width=1,
+            border_color=(_PALETTE_VIOLET, _PALETTE_LAVENDER),
+            text_color=(_PALETTE_VIOLET, _PALETTE_LAVENDER),
+            hover_color=(_PALETTE_SAND, "#2a2838"),
             command=self._on_paste_headers,
         )
-        self._paste_btn.pack(padx=16, pady=(6, 0), fill="x")
+        self._paste_btn.pack(padx=16, pady=(8, 0), fill="x")
 
         # Batch analyze button
         self._batch_btn = ctk.CTkButton(
@@ -169,9 +192,12 @@ class ForensicGUI(ctk.CTk):
             text="\u2699  Batch Analyze",
             font=ctk.CTkFont(family=_FONT_FAMILY, size=12),
             height=34,
+            corner_radius=10,
             fg_color="transparent",
-            border_width=2,
-            text_color=("gray10", "gray90"),
+            border_width=1,
+            border_color=(_PALETTE_VIOLET, _PALETTE_LAVENDER),
+            text_color=(_PALETTE_VIOLET, _PALETTE_LAVENDER),
+            hover_color=(_PALETTE_SAND, "#2a2838"),
             command=self._on_batch_analyze,
         )
         self._batch_btn.pack(padx=16, pady=(6, 0), fill="x")
@@ -182,6 +208,7 @@ class ForensicGUI(ctk.CTk):
             text="\u21E9  Export Report",
             font=ctk.CTkFont(family=_FONT_FAMILY, size=12, weight="bold"),
             height=34,
+            corner_radius=10,
             state="disabled",
             fg_color=_NEUTRAL_COLOR,
             command=self._on_export_report,
@@ -189,13 +216,18 @@ class ForensicGUI(ctk.CTk):
         self._export_btn.pack(padx=16, pady=(10, 0), fill="x")
 
         # ── Recent Analyses ──────────────────────────────────────
+        ctk.CTkFrame(
+            sidebar, height=1,
+            fg_color=(_PALETTE_LAVENDER, "#3a3050"),
+        ).pack(fill="x", padx=16, pady=(16, 0))
+
         self._recent_label = ctk.CTkLabel(
             sidebar,
             text="Recent Analyses",
             font=ctk.CTkFont(family=_FONT_FAMILY, size=11, weight="bold"),
-            text_color=_NEUTRAL_COLOR,
+            text_color=(_PALETTE_VIOLET, _PALETTE_LAVENDER),
         )
-        self._recent_label.pack(padx=16, pady=(14, 2), anchor="w")
+        self._recent_label.pack(padx=16, pady=(8, 2), anchor="w")
 
         self._recent_frame = ctk.CTkFrame(sidebar, fg_color="transparent")
         self._recent_frame.pack(padx=16, fill="x")
@@ -212,8 +244,9 @@ class ForensicGUI(ctk.CTk):
 
         # ── Sidebar Summary Mini-Card ────────────────────────────
         self._sidebar_summary = ctk.CTkFrame(
-            sidebar, corner_radius=8, border_width=1,
-            border_color=("gray80", "gray30"),
+            sidebar, corner_radius=10, border_width=1,
+            border_color=(_PALETTE_VIOLET, _PALETTE_LAVENDER),
+            fg_color=("#EDE5D8", "#272535"),
         )
         # Hidden initially — shown after first analysis
 
@@ -224,16 +257,22 @@ class ForensicGUI(ctk.CTk):
             theme_frame,
             text="Theme",
             font=ctk.CTkFont(family=_FONT_FAMILY, size=11),
+            text_color=_NEUTRAL_COLOR,
         ).pack(side="left")
         self._theme_switch = ctk.CTkSwitch(
             theme_frame,
             text="",
             width=44,
+            button_color=(_PALETTE_VIOLET, _PALETTE_LAVENDER),
+            button_hover_color=("#7a6eb0", "#a090bc"),
+            progress_color=(_PALETTE_LAVENDER, "#3a3050"),
             command=self._toggle_theme,
             onvalue="Light",
             offvalue="Dark",
         )
         self._theme_switch.pack(side="right")
+        # Start toggled right (Light mode is the default)
+        self._theme_switch.select()
 
     def _update_recent_analyses(
         self, name: str, path: str | None, score: int, level: str
@@ -267,13 +306,13 @@ class ForensicGUI(ctk.CTk):
             # Color dot based on risk level
             level = entry["level"]
             if level == "Critical":
-                dot_color = "#e74c3c"
+                dot_color = "#a05050"
             elif level == "High":
-                dot_color = "#f39c12"
+                dot_color = "#9a6e20"
             elif level == "Medium":
-                dot_color = "#3498db"
+                dot_color = _PALETTE_VIOLET
             else:
-                dot_color = "#2ecc71"
+                dot_color = "#2a7a8a"
 
             ctk.CTkLabel(
                 row, text="\u25CF", width=14,
@@ -334,8 +373,8 @@ class ForensicGUI(ctk.CTk):
     # ── Main area ────────────────────────────────────────────────────
     def _build_main_area(self) -> None:
         # Container that sits to the right of the sidebar
-        self._main = ctk.CTkFrame(self, fg_color="transparent")
-        self._main.grid(row=0, column=1, rowspan=2, sticky="nsew", padx=10, pady=10)
+        self._main = ctk.CTkFrame(self, fg_color=(_PALETTE_SAND, "#1e1c2a"), corner_radius=0)
+        self._main.grid(row=0, column=1, rowspan=2, sticky="nsew", padx=0, pady=0)
         self._main.grid_rowconfigure(1, weight=1)
         self._main.grid_columnconfigure(0, weight=1)
 
@@ -353,9 +392,15 @@ class ForensicGUI(ctk.CTk):
         # Tabview
         self._tabs = ctk.CTkTabview(
             self._main,
-            segmented_button_fg_color=None,
+            fg_color=(_PALETTE_SAND, "#1e1c2a"),
+            segmented_button_fg_color=(_PALETTE_LAVENDER, "#2a2838"),
+            segmented_button_selected_color=(_PALETTE_VIOLET, "#3a3060"),
+            segmented_button_selected_hover_color=("#7a6eb0", "#4a4070"),
+            segmented_button_unselected_color=(_PALETTE_LAVENDER, "#2a2838"),
+            segmented_button_unselected_hover_color=(_PALETTE_SAND, "#252333"),
+            text_color=("gray10", "gray90"),
         )
-        self._tabs.grid(row=1, column=0, sticky="nsew")
+        self._tabs.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 4))
 
         for name in (
             "Dashboard",
@@ -390,7 +435,7 @@ class ForensicGUI(ctk.CTk):
             text_color=_NEUTRAL_COLOR,
             anchor="w",
         )
-        self._status_bar.grid(row=3, column=0, sticky="ew", pady=(4, 0))
+        self._status_bar.grid(row=3, column=0, sticky="ew", padx=12, pady=(4, 8))
 
         # Dashboard placeholder
         self._show_dashboard_placeholder()
@@ -474,7 +519,12 @@ class ForensicGUI(ctk.CTk):
 
     # ── Progress bar ────────────────────────────────────────────────
     def _build_progress_bar(self) -> None:
-        self._progress_frame = ctk.CTkFrame(self._main, corner_radius=8)
+        self._progress_frame = ctk.CTkFrame(
+            self._main, corner_radius=8,
+            fg_color=(_PALETTE_SAND, "#1e1c2a"),
+            border_width=1,
+            border_color=(_PALETTE_LAVENDER, "#3a3050"),
+        )
         # Hidden by default — will be shown via grid() during analysis
         self._progress_phase_label = ctk.CTkLabel(
             self._progress_frame,
@@ -485,7 +535,8 @@ class ForensicGUI(ctk.CTk):
         self._progress_phase_label.pack(fill="x", padx=12, pady=(8, 2))
 
         self._progress_bar = ctk.CTkProgressBar(
-            self._progress_frame, height=10, corner_radius=5,
+            self._progress_frame, height=8, corner_radius=4,
+            progress_color=(_PALETTE_VIOLET, _PALETTE_LAVENDER),
         )
         self._progress_bar.set(0)
         self._progress_bar.pack(fill="x", padx=12, pady=(0, 2))
@@ -524,7 +575,7 @@ class ForensicGUI(ctk.CTk):
     # ── Helpers ──────────────────────────────────────────────────────
     @staticmethod
     def _scrollable_frame(parent: ctk.CTkFrame) -> ctk.CTkScrollableFrame:
-        sf = ctk.CTkScrollableFrame(parent, fg_color="transparent")
+        sf = ctk.CTkScrollableFrame(parent, fg_color=(_PALETTE_SAND, "#1e1c2a"))
         sf.pack(fill="both", expand=True)
         return sf
 
@@ -584,10 +635,10 @@ class ForensicGUI(ctk.CTk):
                 height=22,
                 font=ctk.CTkFont(family=_FONT_FAMILY, size=10),
                 fg_color="transparent",
-                hover_color=("gray85", "gray25"),
+                hover_color=(_PALETTE_SAND, "#2a2838"),
                 text_color=_NEUTRAL_COLOR,
                 border_width=1,
-                border_color=("gray80", "gray30"),
+                border_color=(_PALETTE_LAVENDER, "#3a3050"),
                 corner_radius=4,
                 command=lambda t=value: self._copy_to_clipboard(t),
             ).pack(side="right", padx=(4, 0))
@@ -596,19 +647,21 @@ class ForensicGUI(ctk.CTk):
         ctk.CTkLabel(
             parent,
             text=title,
-            font=ctk.CTkFont(family=_FONT_FAMILY, size=16, weight="bold"),
-        ).pack(anchor="w", padx=4, pady=(18, 4))
-        ctk.CTkFrame(parent, height=3, fg_color=_NEUTRAL_COLOR).pack(
-            fill="x", padx=4, pady=(0, 8)
-        )
+            font=ctk.CTkFont(family=_FONT_FAMILY, size=15, weight="bold"),
+            text_color=(_PALETTE_VIOLET, _PALETTE_LAVENDER),
+        ).pack(anchor="w", padx=4, pady=(20, 4))
+        ctk.CTkFrame(
+            parent, height=2,
+            fg_color=(_PALETTE_LAVENDER, "#3a3050"),
+        ).pack(fill="x", padx=4, pady=(0, 8))
 
     def _add_badge(self, parent, text: str, status: str) -> ctk.CTkLabel:
         """Create a small color-coded status badge (PASS/FAIL/WARN/etc.)."""
         colors = {
-            "pass": ("#1a8a4a", "#2ecc71"),
-            "fail": ("#c0392b", "#e74c3c"),
-            "warn": ("#b87c10", "#f39c12"),
-            "neutral": ("#5a6368", "#95a5a6"),
+            "pass":    ("#2a7a8a", "#1e6070"),
+            "fail":    ("#a05050", "#804040"),
+            "warn":    ("#9a6e20", "#7a5010"),
+            "neutral": ("#6a5e88", "#503e70"),
         }
         bg = colors.get(status, colors["neutral"])
         badge = ctk.CTkLabel(
@@ -617,8 +670,8 @@ class ForensicGUI(ctk.CTk):
             font=ctk.CTkFont(family=_FONT_FAMILY, size=11, weight="bold"),
             text_color="white",
             fg_color=bg,
-            corner_radius=6,
-            height=24,
+            corner_radius=10,
+            height=26,
         )
         return badge
 
@@ -626,12 +679,13 @@ class ForensicGUI(ctk.CTk):
         """Create a card-style frame with rounded corners and border."""
         card = ctk.CTkFrame(
             parent,
-            corner_radius=10,
+            corner_radius=12,
             border_width=1,
-            border_color=("gray80", "gray30"),
+            border_color=(_PALETTE_LAVENDER, "#3a3050"),
+            fg_color=("#EDE5D8", "#272535"),
             **kwargs,
         )
-        card.pack(fill="x", padx=6, pady=6)
+        card.pack(fill="x", padx=6, pady=8)
         return card
 
     # ── Theme toggle ─────────────────────────────────────────────────
@@ -672,16 +726,16 @@ class ForensicGUI(ctk.CTk):
         # ── Verdict Banner ──────────────────────────────────────
         if score is not None:
             verdict_map = {
-                "Critical": ("#c0392b", "CRITICAL RISK"),
-                "High": ("#d35400", "HIGH RISK"),
-                "Medium": ("#2980b9", "MEDIUM RISK"),
-                "Low": ("#27ae60", "LOW RISK"),
+                "Critical": ("#a05050", "⚠  CRITICAL RISK"),
+                "High":     ("#9a6e20", "▲  HIGH RISK"),
+                "Medium":   (_PALETTE_VIOLET, "◆  MEDIUM RISK"),
+                "Low":      ("#2a7a8a", "✔  LOW RISK"),
             }
-            v_color, v_text = verdict_map.get(level, ("#27ae60", "LOW RISK"))
+            v_color, v_text = verdict_map.get(level, ("#2a7a8a", "✔  LOW RISK"))
             verdict_frame = ctk.CTkFrame(
-                self._dash_frame, fg_color=v_color, corner_radius=8,
+                self._dash_frame, fg_color=v_color, corner_radius=12,
             )
-            verdict_frame.pack(fill="x", padx=20, pady=(8, 12))
+            verdict_frame.pack(fill="x", padx=16, pady=(8, 14))
             ctk.CTkLabel(
                 verdict_frame,
                 text=v_text,
@@ -830,7 +884,7 @@ class ForensicGUI(ctk.CTk):
     def _draw_risk_gauge(self, parent, score: int, level: str) -> None:
         """Draw a semicircular risk gauge on a tk.Canvas."""
         mode = ctk.get_appearance_mode()
-        bg = "#ffffff" if mode == "Light" else "#2b2b2b"
+        bg = _PALETTE_SAND if mode == "Light" else "#1e1c2a"
 
         canvas = tk.Canvas(
             parent, width=300, height=170, bg=bg,
@@ -843,23 +897,23 @@ class ForensicGUI(ctk.CTk):
         r_outer, r_inner = 120, 80
         arc_width = r_outer - r_inner
 
-        # Background arc (gray)
+        # Background arc
         canvas.create_arc(
             cx - r_outer, cy - r_outer, cx + r_outer, cy + r_outer,
             start=0, extent=180, style="arc",
-            outline="#555555" if mode == "Dark" else "#d0d0d0",
+            outline="#404060" if mode == "Dark" else _PALETTE_TEAL,
             width=arc_width,
         )
 
         # Score arc (colored)
         if score >= 75:
-            arc_color = "#e74c3c"
+            arc_color = "#a05050"
         elif score >= 50:
-            arc_color = "#f39c12"
+            arc_color = "#9a6e20"
         elif score >= 25:
-            arc_color = "#3498db"
+            arc_color = _PALETTE_VIOLET
         else:
-            arc_color = "#2ecc71"
+            arc_color = "#2a7a8a"
 
         extent = (score / 100) * 180
         if extent > 0:
@@ -879,9 +933,9 @@ class ForensicGUI(ctk.CTk):
         )
         canvas.create_text(
             cx, cy - 8,
-            text=f"/ 100",
+            text="/ 100",
             font=(_FONT_FAMILY, 12),
-            fill="#888888",
+            fill=_PALETTE_LAVENDER if mode == "Dark" else "#888888",
         )
         canvas.create_text(
             cx, cy + 16,
@@ -903,25 +957,26 @@ class ForensicGUI(ctk.CTk):
         val_color = colors.get(status, _NEUTRAL_COLOR)
 
         card = ctk.CTkFrame(
-            parent, corner_radius=8, border_width=1,
-            border_color=("gray80", "gray30"),
+            parent, corner_radius=12, border_width=1,
+            border_color=(_PALETTE_LAVENDER, "#3a3050"),
+            fg_color=("#EDE5D8", "#272535"),
             width=160,
         )
-        card.pack(side="left", padx=6, pady=4, fill="both", expand=True)
+        card.pack(side="left", padx=5, pady=4, fill="both", expand=True)
 
         ctk.CTkLabel(
             card,
             text=title,
             font=ctk.CTkFont(family=_FONT_FAMILY, size=11),
             text_color=_NEUTRAL_COLOR,
-        ).pack(padx=10, pady=(10, 2))
+        ).pack(padx=10, pady=(12, 2))
 
         ctk.CTkLabel(
             card,
             text=value,
-            font=ctk.CTkFont(family=_FONT_FAMILY, size=22, weight="bold"),
+            font=ctk.CTkFont(family=_FONT_FAMILY, size=24, weight="bold"),
             text_color=val_color,
-        ).pack(padx=10, pady=(0, 10))
+        ).pack(padx=10, pady=(0, 12))
 
     # ── File selection & analysis ────────────────────────────────────
     def _on_select_file(self) -> None:
@@ -1206,9 +1261,9 @@ class ForensicGUI(ctk.CTk):
             return
 
         color_map = {
-            "high": "#c0392b",
-            "medium": "#d35400",
-            "low": "#2980b9",
+            "high":   "#a05050",
+            "medium": "#9a6e20",
+            "low":    _PALETTE_VIOLET,
         }
         icon = "⚠" if severity == "high" else "ⓘ"
         self._banner.configure(
@@ -2307,18 +2362,18 @@ class ForensicGUI(ctk.CTk):
   * {{ margin:0; padding:0; box-sizing:border-box; }}
   body {{ font-family:'Segoe UI',system-ui,sans-serif; background:#0f1117; color:#e0e0e0; padding:32px; }}
   h1 {{ color:#fff; margin-bottom:4px; }}
-  .subtitle {{ color:#95a5a6; margin-bottom:24px; font-size:14px; }}
+  .subtitle {{ color:#BDA6CE; margin-bottom:24px; font-size:14px; }}
   table {{ width:100%; border-collapse:collapse; margin-top:16px; }}
-  th {{ text-align:left; padding:8px 10px; color:#95a5a6; font-size:12px; border-bottom:2px solid #333; }}
-  td {{ padding:6px 10px; border-bottom:1px solid #222; font-size:13px; max-width:250px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }}
-  tr:hover {{ background:#1a1d27; }}
-  .critical {{ color:#e74c3c; }}
-  .high {{ color:#f39c12; }}
-  .medium {{ color:#3498db; }}
-  .low {{ color:#2ecc71; }}
-  .pass {{ color:#2ecc71; }}
-  .fail {{ color:#e74c3c; }}
-  .error-row td {{ color:#e74c3c; }}
+  th {{ text-align:left; padding:8px 10px; color:#BDA6CE; font-size:12px; border-bottom:2px solid #3a3050; }}
+  td {{ padding:6px 10px; border-bottom:1px solid #2a2838; font-size:13px; max-width:250px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }}
+  tr:hover {{ background:#1e1c2a; }}
+  .critical {{ color:#e8a8a8; }}
+  .high {{ color:#d4a840; }}
+  .medium {{ color:#9B8EC7; }}
+  .low {{ color:#B4D3D9; }}
+  .pass {{ color:#B4D3D9; }}
+  .fail {{ color:#e8a8a8; }}
+  .error-row td {{ color:#e8a8a8; }}
   @media print {{
     body {{ background:#fff; color:#222; }}
     h1 {{ color:#111; }}

@@ -1,0 +1,31 @@
+From: "PayPal Security" <security@paypa1-support.com>
+To: victim@example.com
+Subject: Urgent: Your account has been suspended!
+Date: Thu, 30 Apr 2026 10:15:00 +0000
+Message-ID: <abc123@paypa1-support.com>
+MIME-Version: 1.0
+Content-Type: text/html; charset="UTF-8"
+Received: from malicious-server.example.com (192.0.2.1) by mail.example.com
+Received: from suspicious-relay.example.net (198.51.100.1) by malicious-server.example.com
+
+<!DOCTYPE html>
+<html>
+<body>
+<p>Dear Customer,</p>
+
+<p>We have detected unusual activity on your account. 
+Your account has been <strong>SUSPENDED</strong>. 
+You must verify your information immediately or your account will be permanently closed.</p>
+
+<p><a href="http://paypal-secure-login.example.com/verify?token=abc123">
+Click here to verify your account NOW
+</a></p>
+
+<p>Failure to verify within 24 hours will result in permanent suspension.</p>
+
+<p>Regards,<br>
+PayPal Security Team</p>
+
+<!-- TEST FILE - NOT A REAL PHISHING EMAIL - SAFE FOR DETECTOR TESTING -->
+</body>
+</html>
