@@ -5,26 +5,6 @@ Built in Python, this tool helps analysts parse `.eml` files, inspect email head
 
 ---
 
-## 📌 Table of Contents
-
-- [Overview](#overview)
-- [Key Features](#key-features)
-- [Architecture](#architecture)
-- [Screenshots](#screenshots)
-- [Technology Stack](#technology-stack)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Usage](#usage)
-- [Risk Scoring Model](#risk-scoring-model)
-- [Exports](#exports)
-- [Project Structure](#project-structure)
-- [Roadmap](#roadmap)
-- [Disclaimer](#disclaimer)
-- [License](#license)
-- [Author](#author)
-
----
-
 ## Overview
 
 Phishing remains one of the most common initial attack vectors in modern cyber incidents.  
@@ -89,39 +69,44 @@ This project uses a clean **two-layer architecture**:
    - Modern CustomTkinter interface with 10 analysis tabs
 
 The GUI uses background threads for network-dependent operations to avoid freezing.
+<img width="975" height="532" alt="image" src="https://github.com/user-attachments/assets/3549d880-11ec-4d41-a931-07c82b55b22b" />
 
 ---
 
-## Screenshots
+## GUI
 
-> Add your screenshots to a folder like `docs/images/`, then replace paths below.
 
 ### Dashboard
-![Dashboard](docs/images/dashboard-placeholder.png)
+<img width="975" height="515" alt="image" src="https://github.com/user-attachments/assets/2c4b05dc-1b8b-40a2-bbb6-65cc8e9dd2ab" />
 
 ### Metadata Tab
-![Metadata](docs/images/metadata-placeholder.png)
+<img width="975" height="517" alt="image" src="https://github.com/user-attachments/assets/f5ac4424-c38e-4846-b92f-7f45c31cde87" />
 
 ### Routing Path Analysis
-![Routing Path](docs/images/routing-placeholder.png)
+<img width="975" height="517" alt="image" src="https://github.com/user-attachments/assets/570e3047-ccfc-472b-98a3-8bb995308fb0" />
 
 ### Authentication Results
-![Authentication](docs/images/auth-placeholder.png)
+<img width="975" height="516" alt="image" src="https://github.com/user-attachments/assets/2dbcd3f0-de6d-45a1-b269-e997e8f29e9e" />
 
 ### URL & Link Analysis
-![URL Analysis](docs/images/url-analysis-placeholder.png)
+<img width="975" height="438" alt="image" src="https://github.com/user-attachments/assets/5a6f2d1b-3697-42c7-8527-d18a5e9ec16b" />
 
 ### Attachment Analysis
-![Attachment Analysis](docs/images/attachments-placeholder.png)
+<img width="975" height="518" alt="image" src="https://github.com/user-attachments/assets/2408f2a2-fe5d-4695-86d2-bbb02c754e5d" />
 
 ### Threat Intel
-![Threat Intel](docs/images/threat-intel-placeholder.png)
+<img width="975" height="439" alt="image" src="https://github.com/user-attachments/assets/97b9fb14-a216-420c-bcda-fd836868cfdb" />
 
 ### IOC Export
-![IOC Export](docs/images/ioc-export-placeholder.png)
+<img width="975" height="431" alt="image" src="https://github.com/user-attachments/assets/38bb90c9-f8b4-4a95-9d57-c5acb2b0bd56" />
 
 ### HTML Report Preview
-![HTML Report](docs/images/report-placeholder.png)
+<img width="975" height="515" alt="image" src="https://github.com/user-attachments/assets/20d7901e-a40e-401b-8ade-75afbfba2fe3" />
+
+---
+## Data Flow & Processing Pipeline
+
+<img width="975" height="532" alt="image" src="https://github.com/user-attachments/assets/3b3d4563-0d17-4239-865b-bc5db96bfcc4" />
 
 ---
 
