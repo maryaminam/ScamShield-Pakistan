@@ -1,4 +1,4 @@
-# Email Header Phishing Investigation Tool
+# ScamShield Pakistan
 
 A professional-grade, open-source desktop application for forensic analysis of phishing emails.  
 Built in Python, this tool helps analysts parse `.eml` files, inspect email headers, validate authentication records, analyze URLs and attachments, enrich findings with threat intelligence, and generate exportable reports.
