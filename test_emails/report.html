@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Email Forensic Report</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Segoe UI',system-ui,sans-serif; background:#0f1117; color:#e0e0e0; padding:32px; }
+  h1 { color:#fff; margin-bottom:4px; }
+  .subtitle { color:#95a5a6; margin-bottom:24px; font-size:14px; }
+  h2 { color:#fff; margin:28px 0 10px; padding-bottom:6px; border-bottom:2px solid #333; }
+  h3 { color:#bbb; margin:18px 0 6px; }
+  table { width:100%; border-collapse:collapse; margin-bottom:12px; }
+  td { padding:6px 10px; border-bottom:1px solid #222; vertical-align:top; font-size:13px; }
+  .lbl { color:#95a5a6; width:180px; font-weight:600; white-space:nowrap; }
+  .pass { color:#2ecc71; }
+  .fail { color:#e74c3c; }
+  .neutral { color:#95a5a6; }
+  .risk-banner { text-align:center; padding:16px; border-radius:8px; margin-bottom:20px; }
+  .risk-score { font-size:36px; font-weight:bold; color:#fff; margin-right:16px; }
+  .risk-level { font-size:22px; font-weight:bold; color:#fff; }
+  th { text-align:left; padding:6px 10px; color:#95a5a6; font-size:12px; border-bottom:2px solid #333; }
+  tr:hover { background:#1a1d27; }
+  @media print {
+    body { background:#fff; color:#222; }
+    h1, h2 { color:#111; }
+    h3 { color:#555; }
+    td { border-bottom:1px solid #ddd; }
+    .lbl { color:#555; }
+    .pass { color:#1a8a4a; }
+    .fail { color:#c0392b; }
+    .neutral { color:#666; }
+    .risk-banner { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+    tr:hover { background:transparent; }
+  }
+</style>
+</head>
+<body>
+<h1>Email Forensic Report</h1>
+<p class="subtitle">Generated 2026-04-30 13:04:30 UTC by Email Forensic Analyzer</p>
+
+
+            <div class="risk-banner" style="background:#3498db">
+                <span class="risk-score">35/100</span>
+                <span class="risk-level">Medium</span>
+            </div>
+
+<h2>Email Metadata</h2>
+<table><tr><td class='lbl'>Message-ID</td><td>&lt;attach-007@billing-portal.top&gt;</td></tr>
+<tr><td class='lbl'>Date</td><td>Tue, 28 Apr 2026 16:20:00 +0000</td></tr>
+<tr><td class='lbl'>From</td><td>Accounts Receivable &lt;invoices@billing-portal.top&gt;</td></tr>
+<tr><td class='lbl'>To</td><td>victim@company.com</td></tr>
+<tr><td class='lbl'>Subject</td><td>Invoice #INV-2026-04421 attached</td></tr>
+<tr><td class='lbl'>Return-Path</td><td>&lt;invoices@billing-portal.top&gt;</td></tr></table>
+
+
+            <h2>Header Analysis</h2>
+            <h3>Identity Verification</h3>
+            <table><tr><td class='lbl'>From</td><td>billing-portal.top</td></tr>
+<tr><td class='lbl'>Reply-To</td><td>&mdash;</td></tr>
+<tr><td class='lbl'>Return-Path</td><td>billing-portal.top</td></tr>
+<tr><td class='lbl'>DKIM d=</td><td>&mdash;</td></tr>
+<tr><td class='lbl'>Status</td><td class='pass'><strong>All identity headers are consistent</strong></td></tr></table>
+            <h3>Timestamp Analysis</h3>
+            <table><tr><td class='lbl'>Hop 1</td><td>2026-04-28 16:20:00 UTC</td></tr>
+<tr><td class='lbl'>Status</td><td class='pass'><strong>No timing anomalies detected</strong></td></tr></table>
+            <h3>Forensic X-Headers</h3>
+            <table><tr><td colspan='2' class='neutral'>No forensic X-Headers present</td></tr></table>
+
+<h2>Routing Path</h2>
+<table>
+  <tr><th>Hop</th><th>From</th><th>By</th><th>IP</th><th>Timestamp</th></tr>
+  <tr><td>1</td><td>billing-portal.top</td><td>mx.company.com</td><td>193.142.30.77</td><td>Tue, 28 Apr 2026 16:20:00 +0000 (UTC)</td></tr>
+
+</table>
+
+<h2>Authentication</h2>
+<table><tr><td class='lbl'>SPF</td><td class='fail'>SOFTFAIL</td></tr>
+<tr><td class='lbl'>DKIM</td><td class='neutral'>NONE</td></tr>
+<tr><td class='lbl'>DMARC</td><td class='fail'>FAIL</td></tr>
+<tr><td class='lbl'>Verdict</td><td class='fail'><strong>SUSPICIOUS — one or more checks failed</strong></td></tr></table>
+
+<h2>IP Geolocation</h2><table><tr><td class='lbl'>193.142.30.77</td><td>Iran / Tehran — Batterflyai Media ltd. (AS59580 Batterflyai Media ltd.)</td></tr>
+</table>
+
+<h2>URLs &amp; Links</h2>
+<table>
+  <tr><th>#</th><th>URL</th><th>Domain</th><th>Display Text</th></tr>
+  <tr><td colspan='4'>No URLs found in message body.</td></tr>
+</table>
+
+                <h3>Sender Domain Reputation</h3>
+                <table>
+                    <tr><td class='lbl'>Domain</td><td>billing-portal.top</td></tr>
+                    <tr><td class='lbl'>Registrar</td><td>&mdash;</td></tr>
+                    <tr><td class='lbl'>Created</td><td>&mdash;</td></tr>
+                    <tr><td class='lbl'>Domain Age</td><td class='pass'><strong>&mdash;</strong></td></tr>
+                </table>
+
+<h2>Attachments</h2>
+<table>
+  <tr><th>#</th><th>Filename</th><th>MIME Type</th><th>Size (bytes)</th><th>MD5</th><th>SHA-256</th></tr>
+  <tr class='fail'><td>1</td><td>Invoice_April.pdf.exe <strong>[RISKY]</strong></td><td>application/octet-stream</td><td>128</td><td style='font-family:monospace;font-size:11px'>f472b4ae02e5956f4f25ccfd6ecfda4b</td><td style='font-family:monospace;font-size:11px'>bfdf5e72651b4ec588bd5fc6a9f17e9e0972248146bbacc10478f48d72f29b81</td></tr>
+
+</table>
+
+
+            <h2>Threat Intelligence</h2>
+            <h3>Score Breakdown</h3>
+            <table><tr><td class='fail'><strong>+22 pts</strong></td><td class='fail'>SPF, DMARC failed</td></tr>
+<tr><td class='fail'><strong>+13 pts</strong></td><td class='fail'>Dangerous files: Invoice_April.pdf.exe</td></tr>
+</table>
+            <h3>DNS Record Validation</h3>
+            <table><tr><td class='lbl'>Domain</td><td>billing-portal.top</td></tr>
+<tr><td class='lbl'>SPF</td><td class='fail'><strong>NOT FOUND</strong></td></tr>
+<tr><td class='lbl'>DKIM</td><td class='fail'><strong>NOT FOUND</strong></td></tr>
+<tr><td class='lbl'>DMARC</td><td class='fail'><strong>NOT FOUND</strong></td></tr>
+</table>
+            <h3>Phishing Pattern Analysis</h3>
+            <table><tr><td class='lbl'>Result</td><td class='pass'><strong>No suspicious language detected</strong></td></tr></table>
+            <h3>AbuseIPDB Reputation</h3>
+            <table><tr><td class='lbl'>IP</td><td>193.142.30.77</td></tr>
+<tr><td class='lbl'>Abuse Score</td><td class='pass'><strong>0%</strong></td></tr>
+<tr><td class='lbl'>Total Reports</td><td>0</td></tr>
+<tr><td class='lbl'>ISP</td><td>Batterflyai Media ltd.</td></tr>
+</table>
+
+<hr style="margin-top:32px;border-color:#333">
+<p class="subtitle" style="margin-top:12px">End of report</p>
+</body>
+</html>
