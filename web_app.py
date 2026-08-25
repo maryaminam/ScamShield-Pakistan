@@ -5,8 +5,10 @@ from __future__ import annotations
 import ipaddress
 import os
 import socket
+from concurrent.futures import ThreadPoolExecutor, wait
 from datetime import datetime, timezone
 from pathlib import Path
+from secrets import token_urlsafe
 from threading import Lock
 from urllib.parse import urlparse
 
@@ -47,7 +49,10 @@ app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
 # Demo-only activity history. It deliberately resets when Flask restarts.
 ANALYSIS_HISTORY: list[dict] = []
 HISTORY_LOCK = Lock()
+REPORT_CACHE: dict[str, dict] = {}
+REPORT_CACHE_LOCK = Lock()
 _SUSPICIOUS_TLDS = {"xyz", "top", "tk", "club", "info", "work"}
+_ENRICHMENT_BUDGET_SECONDS = 2.5
 
 
 def _find_available_port(start_port: int, host: str = "127.0.0.1") -> int:
@@ -84,6 +89,60 @@ def build_recommendations(risk_level: str | None, spoofing: dict, patterns: dict
     return recommendations or ["Review the message context before taking any action."]
 
 
+def _run_email_enrichment(analyzer: EmailForensicAnalyzer) -> tuple[dict, dict, dict]:
+    """Run slow, optional reputation lookups concurrently with a short budget."""
+    defaults = {
+        "domain_rep": {"domain": None, "error": "Domain reputation lookup timed out"},
+        "dns": {
+            "domain": None, "error": "DNS enrichment timed out",
+            "spf": {"record": None, "exists": False},
+            "dkim": {"record": None, "exists": False},
+            "dmarc": {"record": None, "exists": False},
+        },
+        "abuse": {"ip": analyzer.originating_ip or "", "error": "AbuseIPDB enrichment timed out"},
+    }
+    tasks = {
+        "domain_rep": analyzer.check_domain_reputation,
+        "dns": analyzer.validate_dns_records,
+        "abuse": lambda: analyzer.check_ip_abuse(analyzer.originating_ip or "", api_key=ABUSEIPDB_API_KEY),
+    }
+    executor = ThreadPoolExecutor(max_workers=len(tasks), thread_name_prefix="scamshield-enrichment")
+    futures = {executor.submit(task): name for name, task in tasks.items()}
+    try:
+        completed, _ = wait(futures, timeout=_ENRICHMENT_BUDGET_SECONDS)
+        for future in completed:
+            name = futures[future]
+            try:
+                defaults[name] = future.result()
+            except Exception as exc:
+                defaults[name] = {**defaults[name], "error": f"{name.replace('_', ' ').title()} failed: {exc}"}
+    finally:
+        # Any late lookup is optional; do not make the HTTP response wait for it.
+        executor.shutdown(wait=False, cancel_futures=True)
+    return defaults["domain_rep"], defaults["dns"], defaults["abuse"]
+
+
+def _store_report_source(raw_text: str, analysis: dict) -> str:
+    """Keep a short-lived in-memory source so reports are built on demand."""
+    report_id = token_urlsafe(18)
+    with REPORT_CACHE_LOCK:
+        REPORT_CACHE[report_id] = {"raw_text": raw_text, "analysis": analysis}
+        while len(REPORT_CACHE) > 100:
+            REPORT_CACHE.pop(next(iter(REPORT_CACHE)))
+    return report_id
+
+
+def _render_html_report(raw_text: str, analysis: dict) -> str:
+    """Create the downloadable report from completed analysis, with no new lookups."""
+    analyzer = EmailForensicAnalyzer(raw_text=raw_text)
+    return analyzer.generate_html_report(
+        metadata=analysis["metadata"], routing=analysis["routing"], auth=analysis["auth"],
+        header_analysis=analysis["header_analysis"], geo=[], urls=analysis["urls"],
+        attachments=analysis["attachments"], domain_rep=analysis["domain_rep"],
+        threat_intel=analysis["threat_intel"],
+    )
+
+
 def _analyze_email(raw_text: str) -> dict:
     """Run the established email analysis pipeline."""
     analyzer = EmailForensicAnalyzer(raw_text=raw_text)
@@ -99,28 +158,18 @@ def _analyze_email(raw_text: str) -> dict:
         "timestamps": analyzer.analyze_timestamps(),
         "x_headers": analyzer.extract_x_headers(),
     }
-    domain_rep = analyzer.check_domain_reputation()
-    dns = analyzer.validate_dns_records()
     patterns = analyzer.detect_phishing_patterns()
-    abuse = analyzer.check_ip_abuse(analyzer.originating_ip or "", api_key=ABUSEIPDB_API_KEY)
+    domain_rep, dns, abuse = _run_email_enrichment(analyzer)
     risk = analyzer.calculate_risk_score(
         auth=auth, urls=urls, attachments=attachments, domain_rep=domain_rep,
         abuse=abuse, patterns=patterns, spoofing=spoofing,
     )
     threat_intel = {"dns": dns, "patterns": patterns, "abuse": abuse, "risk": risk}
     iocs = analyzer.extract_iocs(routing=routing, urls=urls, attachments=attachments, metadata=metadata)
-    vt_results = []
-    if VT_API_KEY:
-        for att in attachments:
-            vt_results.append({"filename": att["filename"], "result": analyzer.check_virustotal(att["sha256"], api_key=VT_API_KEY)})
-    html_report = analyzer.generate_html_report(
-        metadata=metadata, routing=routing, auth=auth, header_analysis=header_analysis,
-        geo=[], urls=urls, attachments=attachments, domain_rep=domain_rep, threat_intel=threat_intel,
-    )
     return {
         "metadata": metadata, "routing": routing, "auth": auth, "urls": urls,
         "attachments": attachments, "domain_rep": domain_rep, "threat_intel": threat_intel,
-        "iocs": iocs, "vt_results": vt_results, "html_report": html_report,
+        "iocs": iocs, "vt_results": [],
         "spoofing": spoofing, "header_analysis": header_analysis,
     }
 
@@ -186,8 +235,7 @@ def _analyze_url(raw_url: str) -> dict:
             break
     synthetic = f"From: test@{hostname}\n\nURL reputation scan"
     analyzer = EmailForensicAnalyzer(raw_text=synthetic)
-    domain_rep_raw = analyzer.check_domain_reputation(hostname)
-    dns = analyzer.validate_dns_records(hostname)
+    domain_rep_raw, dns, _ = _run_email_enrichment(analyzer)
     domain_info = {"registrar": domain_rep_raw.get("registrar"), "creation_date": domain_rep_raw.get("creation_date"),
                    "domain_age_days": domain_rep_raw.get("domain_age_days"), "is_young": bool(domain_rep_raw.get("is_young"))}
     if domain_info["is_young"]:
@@ -222,6 +270,7 @@ def analyze_email_api():
         result = _analyze_email(raw_text)
         risk = result["threat_intel"]["risk"]
         result["recommendations"] = build_recommendations(risk.get("level"), result["spoofing"], result["threat_intel"]["patterns"], result["auth"])
+        result["report_id"] = _store_report_source(raw_text, result)
         _append_activity("email", source_name or "Email", risk.get("score", 0), risk.get("level", "Low"))
         return jsonify(result)
     except Exception as exc:
@@ -244,11 +293,20 @@ def analyze_url_api():
 
 @app.post("/api/export-report")
 def export_report_api():
-    raw_text, _ = _get_email_source()
-    if not raw_text:
-        return jsonify({"error": "Provide the raw email or .eml file to export a report."}), 400
+    report_id = str((request.get_json(silent=True) or {}).get("report_id") or "")
     try:
-        report = _analyze_email(raw_text)["html_report"]
+        if report_id:
+            with REPORT_CACHE_LOCK:
+                saved = REPORT_CACHE.get(report_id)
+            if not saved:
+                return jsonify({"error": "This analysis is no longer available. Run it again before exporting."}), 404
+            report = _render_html_report(saved["raw_text"], saved["analysis"])
+        else:
+            # Retain support for direct multipart calls to this endpoint.
+            raw_text, _ = _get_email_source()
+            if not raw_text:
+                return jsonify({"error": "Analyze an email before exporting its report."}), 400
+            report = _render_html_report(raw_text, _analyze_email(raw_text))
         return Response(report, mimetype="text/html", headers={"Content-Disposition": "attachment; filename=scamshield-forensic-report.html"})
     except Exception as exc:
         return jsonify({"error": f"Report export failed: {exc}"}), 500

@@ -8,6 +8,7 @@ import hashlib
 import ipaddress
 import re
 import unicodedata
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
@@ -60,8 +61,9 @@ _ABUSEIPDB_API = "https://api.abuseipdb.com/api/v2/check"
 # VirusTotal API endpoint (v3).
 _VT_API = "https://www.virustotal.com/api/v3/files/{hash}"
 
-# DNS resolver timeout (seconds).
-_DNS_TIMEOUT = 5
+# DNS resolver timeout (seconds). DNS is enrichment, so it should never hold
+# up the core forensic verdict for several seconds per record.
+_DNS_TIMEOUT = 1.5
 
 # ── Phishing pattern detection ──────────────────────────────────────
 _URGENCY_PATTERNS = re.compile(
@@ -663,43 +665,40 @@ class EmailForensicAnalyzer:
                 return {"domain": None, "error": "No domain in From header"}
             domain = from_header[at_pos + 1:].strip().rstrip(">").lower()
 
-        resolver = dns.resolver.Resolver()
-        resolver.lifetime = _DNS_TIMEOUT
-
-        def _query_txt(name: str) -> str | None:
+        def _query_txt(name: str) -> list[str]:
+            # A resolver per worker keeps concurrent lookups isolated.
+            resolver = dns.resolver.Resolver()
+            resolver.timeout = _DNS_TIMEOUT
+            resolver.lifetime = _DNS_TIMEOUT
             try:
                 answers = resolver.resolve(name, "TXT")
-                for rdata in answers:
-                    txt = rdata.to_text().strip('"')
-                    return txt
+                return [rdata.to_text().strip('"') for rdata in answers]
             except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN,
-                    dns.resolver.NoNameservers, dns.exception.Timeout):
-                return None
+                    dns.resolver.NoNameservers, dns.exception.Timeout,
+                    OSError):
+                return []
 
-        # SPF: TXT record on the domain itself, starts with "v=spf1"
-        spf_record = None
-        try:
-            answers = resolver.resolve(domain, "TXT")
-            for rdata in answers:
-                txt = rdata.to_text().strip('"')
-                if txt.startswith("v=spf1"):
-                    spf_record = txt
-                    break
-        except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN,
-                dns.resolver.NoNameservers, dns.exception.Timeout):
-            pass
+        selectors = ("default", "google", "selector1", "selector2",
+                     "s1", "s2", "k1", "dkim", "mail")
+        query_names = [domain, f"_dmarc.{domain}"] + [
+            f"{selector}._domainkey.{domain}" for selector in selectors
+        ]
+        records: dict[str, list[str]] = {}
+        # All potential DKIM selectors are independent. Query them together so
+        # a missing selector costs at most one DNS timeout, not nine.
+        with ThreadPoolExecutor(max_workers=len(query_names)) as executor:
+            futures = {executor.submit(_query_txt, name): name for name in query_names}
+            for future in as_completed(futures):
+                records[futures[future]] = future.result()
 
-        # DKIM: try common selectors
+        spf_record = next((txt for txt in records.get(domain, []) if txt.startswith("v=spf1")), None)
+        dmarc_record = next(iter(records.get(f"_dmarc.{domain}", [])), None)
         dkim_record = None
-        for selector in ("default", "google", "selector1", "selector2",
-                         "s1", "s2", "k1", "dkim", "mail"):
-            result = _query_txt(f"{selector}._domainkey.{domain}")
-            if result and "v=DKIM1" in result:
-                dkim_record = result
+        for selector in selectors:
+            selector_records = records.get(f"{selector}._domainkey.{domain}", [])
+            dkim_record = next((txt for txt in selector_records if "v=DKIM1" in txt), None)
+            if dkim_record:
                 break
-
-        # DMARC: TXT record at _dmarc.<domain>
-        dmarc_record = _query_txt(f"_dmarc.{domain}")
 
         return {
             "domain": domain,
