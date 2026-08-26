@@ -1079,6 +1079,8 @@ class EmailForensicAnalyzer:
             r"dkim=\w+[^;]*?header\.(?:d|i)=@?([\w.\-]+)", auth_results, re.IGNORECASE
         )
         dkim_domain = dkim_d_match.group(1).lower() if dkim_d_match else None
+        if dkim_domain in ("none", "unknown", ""):
+            dkim_domain = None
 
         domains = {
             "From": from_domain,
@@ -1586,6 +1588,7 @@ class EmailForensicAnalyzer:
                 "anomalies": self.detect_header_anomalies(),
                 "timestamps": self.analyze_timestamps(),
                 "x_headers": self.extract_x_headers(),
+                "spoofing": self.detect_spoofing(),
             }
         if urls is None:
             urls = self.extract_urls()
@@ -1638,6 +1641,7 @@ class EmailForensicAnalyzer:
             anomalies = header_analysis.get("anomalies", {})
             timestamps = header_analysis.get("timestamps", {})
             x_headers = header_analysis.get("x_headers", {})
+            spoofing_info = header_analysis.get("spoofing", {})
 
             # Domains
             domain_rows = ""
@@ -1650,6 +1654,29 @@ class EmailForensicAnalyzer:
                     anomaly_rows += f"<tr><td class='lbl'>Warning</td><td class='fail'><strong>{esc(line)}</strong></td></tr>\n"
             else:
                 anomaly_rows = "<tr><td class='lbl'>Status</td><td class='pass'><strong>All identity headers are consistent</strong></td></tr>"
+            
+            # Spoofing / identity findings
+            spoof_rows = ""
+            findings = spoofing_info.get("findings", [])
+            if findings:
+                for f in findings:
+                    sev = f.get("severity", "low")
+                    cls = "fail" if sev in ("high", "medium") else "neutral"
+                    spoof_rows += (
+                        f"<tr><td class='lbl'>{esc(sev.upper())}</td>"
+                        f"<td class='{cls}'><strong>{esc(f.get('message'))}</strong></td></tr>\n"
+                    )
+            else:
+                spoof_rows = "<tr><td class='pass' colspan='2'><strong>No spoofing indicators detected</strong></td></tr>"
+
+            spoof_html = f"""
+            <h3>Identity Spoofing Findings</h3>
+            <table>
+              <tr><td class='lbl'>Display Name</td><td>{esc(spoofing_info.get('from_display'))}</td></tr>
+              <tr><td class='lbl'>From Address</td><td>{esc(spoofing_info.get('from_address'))}</td></tr>
+              <tr><td class='lbl'>Overall Severity</td><td class='{"fail" if spoofing_info.get("is_spoofed") else "pass"}'><strong>{esc(spoofing_info.get('severity', 'none').upper())}</strong></td></tr>
+              {spoof_rows}
+            </table>"""
 
             # Timestamps
             ts_rows = ""
@@ -1681,6 +1708,7 @@ class EmailForensicAnalyzer:
             <h2>Header Analysis</h2>
             <h3>Identity Verification</h3>
             <table>{domain_rows}{anomaly_rows}</table>
+            {spoof_html}
             <h3>Timestamp Analysis</h3>
             <table>{ts_rows}{ts_anomaly_rows}</table>
             <h3>Forensic X-Headers</h3>
