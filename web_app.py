@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 from flask import Flask, Response, jsonify, render_template, request
 
 from email_forensic_analyzer import EmailForensicAnalyzer, _BRAND_DOMAINS
+import ai_explainer
 
 
 def _load_env_file(path: str = ".env") -> dict[str, str]:
@@ -42,6 +43,12 @@ BASE_DIR = Path(__file__).resolve().parent
 ENV = _load_env_file(str(BASE_DIR / ".env"))
 VT_API_KEY = ENV.get("VT_API") or os.environ.get("VT_API")
 ABUSEIPDB_API_KEY = ENV.get("ABUSEIPDB_API") or os.environ.get("ABUSEIPDB_API")
+GROQ_API_KEY = ENV.get("GROQ_API_KEY") or os.environ.get("GROQ_API_KEY")
+GEMINI_API_KEY = ENV.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
+
+
+print("Loaded .env keys:", list(ENV.keys()))
+print("GROQ key present:", bool(GROQ_API_KEY), "| GEMINI key present:", bool(GEMINI_API_KEY))
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
@@ -319,6 +326,19 @@ def dashboard_stats_api():
     counts = {level: sum(1 for item in history if item["threat_level"] == level) for level in ("Critical", "High", "Medium", "Low")}
     return jsonify({"total_analyses": len(history), "by_threat_level": counts, "recent_activity": list(reversed(history[-10:]))})
 
+
+@app.post("/api/explain")
+def explain_api():
+    body = request.get_json(silent=True) or {}
+    analysis = body.get("analysis", body)
+    source = body.get("source", "email")
+    normalized = ai_explainer.normalize_for_explanation(analysis, source)
+    result = ai_explainer.generate_explanation(
+        normalized,
+        groq_api_key=GROQ_API_KEY,
+        gemini_api_key=GEMINI_API_KEY,
+    )
+    return jsonify(result)
 
 @app.errorhandler(413)
 def too_large(_error):
