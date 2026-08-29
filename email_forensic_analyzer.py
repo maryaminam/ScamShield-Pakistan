@@ -7,6 +7,7 @@ import email.utils
 import hashlib
 import ipaddress
 import re
+import socket
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
@@ -35,6 +36,8 @@ _TIMESTAMP_RE = re.compile(r";\s*(.+)$")
 _SPF_RESULT_RE = re.compile(r"\bspf\s*=\s*(\w+)", re.IGNORECASE)
 _DKIM_RESULT_RE = re.compile(r"\bdkim\s*=\s*(\w+)", re.IGNORECASE)
 _DMARC_RESULT_RE = re.compile(r"\bdmarc\s*=\s*(\w+)", re.IGNORECASE)
+_COMPAUTH_RESULT_RE = re.compile(r"\bcompauth\s*=\s*(\w+)", re.IGNORECASE)
+_COMPAUTH_REASON_RE = re.compile(r"\breason\s*=\s*(\w+)", re.IGNORECASE)
 
 # Received-SPF fallback: "Received-SPF: pass ..." or "Received-SPF: softfail ..."
 _RECEIVED_SPF_RE = re.compile(r"^\s*(\w+)", re.IGNORECASE)
@@ -64,6 +67,7 @@ _VT_API = "https://www.virustotal.com/api/v3/files/{hash}"
 # DNS resolver timeout (seconds). DNS is enrichment, so it should never hold
 # up the core forensic verdict for several seconds per record.
 _DNS_TIMEOUT = 1.5
+_WHOIS_TIMEOUT_SECONDS = 2.5
 
 # ── Phishing pattern detection ──────────────────────────────────────
 _URGENCY_PATTERNS = re.compile(
@@ -126,6 +130,11 @@ _WEIGHTS = {
     "urgency_lang": 20,     # urgency phrases in subject/body
     "credential_lang": 40,  # credential-harvesting phrases
     "impersonation": 10,    # brand impersonation keywords
+    "compauth_fail": 25,    # Microsoft alignment check failed — domain shown
+                             # to user doesn't match authenticated sending domain
+    "header_anomaly": 15,   # From/Reply-To/Return-Path/DKIM-d= domain mismatches
+    "young_url_domain": 14, # a link in the email body points to a very
+                             # recently registered domain
 }
 
 # Brand → set of legitimate sender domain suffixes. Used by detect_spoofing()
@@ -340,6 +349,8 @@ class EmailForensicAnalyzer:
         spf: str | None = None
         dkim: str | None = None
         dmarc: str | None = None
+        compauth: str | None = None
+        compauth_reason: str | None = None
 
         auth_results = self.msg.get("Authentication-Results")
 
@@ -350,6 +361,8 @@ class EmailForensicAnalyzer:
             spf_m = _SPF_RESULT_RE.search(auth_text)
             dkim_m = _DKIM_RESULT_RE.search(auth_text)
             dmarc_m = _DMARC_RESULT_RE.search(auth_text)
+            compauth_m = _COMPAUTH_RESULT_RE.search(auth_text)
+            compauth_reason_m = _COMPAUTH_REASON_RE.search(auth_text)
 
             if spf_m:
                 spf = spf_m.group(1).lower()
@@ -357,6 +370,10 @@ class EmailForensicAnalyzer:
                 dkim = dkim_m.group(1).lower()
             if dmarc_m:
                 dmarc = dmarc_m.group(1).lower()
+            if compauth_m:
+                compauth = compauth_m.group(1).lower()
+            if compauth_reason_m:
+                compauth_reason = compauth_reason_m.group(1)
         else:
             # Fallback: Received-SPF header (provides SPF only).
             received_spf = self.msg.get("Received-SPF")
@@ -366,12 +383,14 @@ class EmailForensicAnalyzer:
                     spf = m.group(1).lower()
 
         results = {r for r in (spf, dkim, dmarc) if r is not None}
-        is_suspicious = bool(results & _SUSPICIOUS_STATUSES)
+        is_suspicious = bool(results & _SUSPICIOUS_STATUSES) or compauth == "fail"
 
         return {
             "spf": spf,
             "dkim": dkim,
             "dmarc": dmarc,
+            "compauth": compauth,
+            "compauth_reason": compauth_reason,
             "is_suspicious": is_suspicious,
         }
 
@@ -608,7 +627,17 @@ class EmailForensicAnalyzer:
             # Import lazily to avoid hard failure when optional deps are missing
             # in the currently selected editor environment.
             whois_module = __import__("whois")
-            w = whois_module.whois(domain)
+            original_timeout = socket.getdefaulttimeout()
+            socket.setdefaulttimeout(_WHOIS_TIMEOUT_SECONDS)
+            try:
+                w = whois_module.whois(domain)
+            finally:
+                socket.setdefaulttimeout(original_timeout)
+        except socket.timeout:
+            return {
+                "domain": domain,
+                "error": f"WHOIS lookup timed out after {_WHOIS_TIMEOUT_SECONDS}s",
+            }
         except Exception as exc:
             return {"domain": domain, "error": f"WHOIS lookup failed: {exc}"}
 
@@ -636,6 +665,64 @@ class EmailForensicAnalyzer:
             "is_young": is_young,
         }
 
+    # ------------------------------------------------------------------
+    # URL-domain reputation (WHOIS age check for linked domains)
+    # ------------------------------------------------------------------
+
+    def check_url_domain_reputation(
+        self,
+        urls: list[dict] | None = None,
+        max_domains: int = 3,
+    ) -> list[dict]:
+        """WHOIS lookup on domains found in email-body URLs.
+
+        Checks up to *max_domains* unique link domains (excluding the
+        sender's own From domain, which is already checked separately
+        by ``check_domain_reputation``).
+
+        Args:
+            urls: Pre-computed URL list from ``extract_urls()``.
+                  If ``None``, ``extract_urls()`` is called automatically.
+            max_domains: Cap on how many WHOIS lookups to perform.
+
+        Returns:
+            A list of dicts, each with keys: domain, registrar,
+            domain_age_days, is_young, and optionally error.
+        """
+        if urls is None:
+            urls = self.extract_urls()
+
+        # Sender's From domain — exclude it from URL-domain checks.
+        from_header = self.msg.get("From") or ""
+        at_pos = from_header.rfind("@")
+        sender_domain = (
+            from_header[at_pos + 1 :].strip().rstrip(">").lower()
+            if at_pos != -1
+            else None
+        )
+
+        seen: set[str] = set()
+        domains_to_check: list[str] = []
+        for u in urls:
+            domain = (u.get("domain") or "").lower()
+            if not domain or domain == sender_domain or domain in seen:
+                continue
+            seen.add(domain)
+            domains_to_check.append(domain)
+            if len(domains_to_check) >= max_domains:
+                break
+
+        results: list[dict] = []
+        for domain in domains_to_check:
+            rep = self.check_domain_reputation(domain)
+            results.append({
+                "domain": rep.get("domain", domain),
+                "registrar": rep.get("registrar"),
+                "domain_age_days": rep.get("domain_age_days"),
+                "is_young": bool(rep.get("is_young")),
+                "error": rep.get("error"),
+            })
+        return results
 
     # ------------------------------------------------------------------
     # Phase 2: DNS record validation
@@ -730,7 +817,7 @@ class EmailForensicAnalyzer:
                 - is_flagged          : True if abuse_score >= 25
                 - error               : present only on failure
         """
-        if api_key is None:
+        if api_key is None or not str(api_key).strip():
             return {
                 "ip": ip,
                 "error": "No AbuseIPDB API key provided — skipped",
@@ -757,6 +844,14 @@ class EmailForensicAnalyzer:
             return {"ip": ip, "error": "AbuseIPDB request timed out"}
         except requests.exceptions.ConnectionError:
             return {"ip": ip, "error": "Unable to reach AbuseIPDB"}
+        except requests.exceptions.HTTPError as exc:
+            status = exc.response.status_code if exc.response is not None else None
+            if status in (401, 403):
+                return {
+                    "ip": ip,
+                    "error": "AbuseIPDB API key is missing, invalid, or expired. Update ABUSEIPDB_API in .env and restart the app.",
+                }
+            return {"ip": ip, "error": f"AbuseIPDB request failed: {exc}"}
         except requests.exceptions.RequestException as exc:
             return {"ip": ip, "error": f"AbuseIPDB request failed: {exc}"}
 
@@ -916,6 +1011,8 @@ class EmailForensicAnalyzer:
         abuse: dict | None = None,
         patterns: dict | None = None,
         spoofing: dict | None = None,
+        header_anomalies: dict | None = None,
+        url_domain_reps: list[dict] | None = None,
     ) -> dict:
         """Compute a weighted risk score from all available analysis results.
 
@@ -940,6 +1037,8 @@ class EmailForensicAnalyzer:
             patterns = self.detect_phishing_patterns()
         if spoofing is None:
             spoofing = self.detect_spoofing()
+        if header_anomalies is None:
+            header_anomalies = self.detect_header_anomalies()
 
         score = 0
         breakdown: dict[str, tuple[int, str]] = {}
@@ -958,11 +1057,23 @@ class EmailForensicAnalyzer:
 
         # 1. Authentication failures
         if auth.get("is_suspicious"):
-            pts = _WEIGHTS["auth_fail"]
-            failures = [p for p in ("spf", "dkim", "dmarc")
-                        if auth.get(p) in ("fail", "softfail")]
+            spf_dkim_dmarc_failures = [p for p in ("spf", "dkim", "dmarc")
+                                       if auth.get(p) in ("fail", "softfail")]
+            if spf_dkim_dmarc_failures:
+                pts = _WEIGHTS["auth_fail"]
+                score += pts
+                breakdown["auth_fail"] = (pts, f"{', '.join(f.upper() for f in spf_dkim_dmarc_failures)} failed")
+
+        # 1b. Microsoft composite authentication (compauth)
+        if auth.get("compauth") == "fail":
+            pts = _WEIGHTS["compauth_fail"]
+            reason_code = auth.get("compauth_reason", "unknown")
             score += pts
-            breakdown["auth_fail"] = (pts, f"{', '.join(f.upper() for f in failures)} failed")
+            breakdown["compauth_fail"] = (
+                pts,
+                f"Microsoft composite authentication failed (reason={reason_code})"
+                f" — sending domain doesn't match displayed From address.",
+            )
 
         # 2. URL mismatches
         mismatches = [u for u in urls if u.get("mismatch")]
@@ -1022,6 +1133,39 @@ class EmailForensicAnalyzer:
                 pts,
                 f"Matched: {', '.join(patterns['impersonation'][:5])}",
             )
+
+        # 9. Header anomaly — DKIM signing domain mismatch (not in spoofing)
+        dkim_anomaly = any(
+            "DKIM signing domain" in a
+            for a in header_anomalies.get("anomalies", [])
+        )
+        spoofing_covers_dkim = any(
+            "DKIM" in f.get("message", "")
+            for f in (spoofing or {}).get("findings", [])
+        )
+        if dkim_anomaly and not spoofing_covers_dkim:
+            pts = _WEIGHTS["header_anomaly"]
+            score += pts
+            breakdown["header_anomaly"] = (
+                pts,
+                "DKIM signing domain differs from From domain.",
+            )
+
+        # 10. Young URL domain — a link in the body points to a recently
+        #     registered domain.
+        if url_domain_reps:
+            young_domains = [
+                entry["domain"]
+                for entry in url_domain_reps
+                if entry.get("is_young")
+            ]
+            if young_domains:
+                pts = _WEIGHTS["young_url_domain"]
+                score += pts
+                breakdown["young_url_domain"] = (
+                    pts,
+                    f"Linked domain '{young_domains[0]}' registered recently.",
+                )
 
         # Determine threat level.
         if score >= 75:
@@ -1564,6 +1708,7 @@ class EmailForensicAnalyzer:
         attachments: list[dict] | None = None,
         domain_rep: dict | None = None,
         threat_intel: dict | None = None,
+        url_domain_reps: list[dict] | None = None,
     ) -> str:
         """Generate a self-contained HTML forensic report.
 
@@ -1631,6 +1776,13 @@ class EmailForensicAnalyzer:
             display = (status or "NOT PRESENT").upper()
             cls = "pass" if status == "pass" else ("fail" if status in ("fail", "softfail") else "neutral")
             auth_rows += f"<tr><td class='lbl'>{proto.upper()}</td><td class='{cls}'>{esc(display)}</td></tr>\n"
+        # Microsoft compauth row (only when present in headers).
+        compauth_val = auth.get("compauth")
+        if compauth_val is not None:
+            ca_display = compauth_val.upper()
+            ca_cls = "pass" if compauth_val == "pass" else ("fail" if compauth_val == "fail" else "neutral")
+            reason_suffix = f" (reason={auth['compauth_reason']})" if auth.get("compauth_reason") else ""
+            auth_rows += f"<tr><td class='lbl'>COMPAUTH</td><td class='{ca_cls}'>{esc(ca_display + reason_suffix)}</td></tr>\n"
         verdict_cls = "fail" if auth.get("is_suspicious") else "pass"
         verdict_text = "SUSPICIOUS — one or more checks failed" if auth.get("is_suspicious") else "No failures detected"
         auth_rows += f"<tr><td class='lbl'>Verdict</td><td class='{verdict_cls}'><strong>{esc(verdict_text)}</strong></td></tr>"
@@ -1774,6 +1926,33 @@ class EmailForensicAnalyzer:
                     <tr><td class='lbl'>Created</td><td>{esc(domain_rep.get('creation_date'))}</td></tr>
                     <tr><td class='lbl'>Domain Age</td><td class='{young_cls}'><strong>{age_str}</strong></td></tr>
                 </table>"""
+
+        # ── URL domain reputation (linked domains) ─────────────
+        url_domain_html = ""
+        if url_domain_reps:
+            udr_rows = ""
+            for entry in url_domain_reps:
+                if entry.get("error"):
+                    udr_rows += (
+                        f"<tr><td>{esc(entry.get('domain', ''))}</td>"
+                        f"<td colspan='3' class='neutral'>{esc(entry['error'])}</td></tr>\n"
+                    )
+                else:
+                    age = entry.get("domain_age_days")
+                    age_str = f"{age} days" if age is not None else "&mdash;"
+                    young_cls = "fail" if entry.get("is_young") else "pass"
+                    udr_rows += (
+                        f"<tr><td>{esc(entry.get('domain', ''))}</td>"
+                        f"<td>{esc(entry.get('registrar'))}</td>"
+                        f"<td class='{young_cls}'><strong>{age_str}</strong></td>"
+                        f"<td class='{young_cls}'>{'YES' if entry.get('is_young') else 'No'}</td></tr>\n"
+                    )
+            url_domain_html = f"""
+            <h3>Linked Domain Reputation</h3>
+            <table>
+                <tr><th>Domain</th><th>Registrar</th><th>Age</th><th>Young?</th></tr>
+                {udr_rows}
+            </table>"""
 
         # ── Attachments ─────────────────────────────────────────
         attach_rows = ""
@@ -1925,6 +2104,7 @@ class EmailForensicAnalyzer:
   {url_rows}
 </table>
 {domain_html}
+{url_domain_html}
 
 <h2>Attachments</h2>
 <table>

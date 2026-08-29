@@ -22,9 +22,16 @@ _cache: dict[str, dict] = {}
 _SYSTEM_PROMPT = (
     "You are explaining pre-computed email security findings to a "
     "non-technical user. Do not change the risk score or verdict — only "
-    "explain it. Be concise, avoid jargon, use plain language. Output "
-    "ONLY valid JSON matching the exact schema given, no markdown fences, "
-    "no preamble, no extra commentary."
+    "explain it.\n\n"
+    "Be concise and avoid jargon, but do NOT be vague or generic. Always "
+    "name the specific sender address, domain names, display names, and "
+    "flagged phrases from the input data — never write generic filler like "
+    "'this email shows some concerning signs' or 'there are authentication "
+    "issues.' Write the way a helpful colleague would explain it, pointing "
+    "at exact details: who it claims to be from, what doesn't match, what "
+    "specific link or word triggered concern.\n\n"
+    "Output ONLY valid JSON matching the exact schema given, no markdown "
+    "fences, no preamble, no extra commentary."
 )
 
 _OUTPUT_SCHEMA_INSTRUCTION = """
@@ -39,6 +46,15 @@ Rules:
 - key_concerns: max 5 items
 - recommended_actions: max 4 items, imperative voice
 - Do NOT add any keys beyond the four listed above
+- Every bullet and sentence should reference an actual name, domain, or
+  phrase from the input — not a category label
+
+Example of the specificity expected:
+BAD:  "This email has some authentication issues and a suspicious sender."
+GOOD: "This email claims to be from 'Intimação eletrônica' but was actually
+       sent through cartorio02@uorak.com, and Microsoft's own systems
+       flagged that the domain shown to you doesn't match the domain that
+       actually sent it — a classic spoofing pattern."
 """
 
 
@@ -68,6 +84,8 @@ def _build_trimmed_input(result: dict) -> dict:
             "spf": _safe_get(result, "auth", "spf"),
             "dkim": _safe_get(result, "auth", "dkim"),
             "dmarc": _safe_get(result, "auth", "dmarc"),
+            "compauth": _safe_get(result, "auth", "compauth"),
+            "compauth_reason": _safe_get(result, "auth", "compauth_reason"),
         },
         "spoofing": {
             "from_display": _safe_get(result, "spoofing", "from_display"),
@@ -104,6 +122,14 @@ def _build_trimmed_input(result: dict) -> dict:
             "abuse_score": abuse.get("abuse_score"),
             "is_flagged": abuse.get("is_flagged"),
         } if not abuse.get("error") else {"error": abuse.get("error")},
+        "header_anomalies": [
+            a for a in (_safe_get(result, "header_analysis", "anomalies", "anomalies") or [])[:5]
+        ],
+        "url_domain_reps": [
+            {"domain": r.get("domain"), "domain_age_days": r.get("domain_age_days"),
+             "is_young": r.get("is_young")}
+            for r in (result.get("url_domain_reps") or [])[:3]
+        ],
     }
 
 
@@ -206,37 +232,21 @@ def _build_fallback(result: dict) -> dict:
 
 # ── LLM provider calls ────────────────────────────────────────────
 
-'''
 def _call_groq(user_prompt: str, api_key: str) -> str:
     """Call Groq's chat completions API. Returns raw response text."""
     from groq import Groq  # lazy import
 
     client = Groq(api_key=api_key, timeout=10.0)
     completion = client.chat.completions.create(
-        model="qwen/qwen3.6-27b",
+        model="openai/gpt-oss-20b",
         messages=[
             {"role": "system", "content": _SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
         ],
         response_format={"type": "json_object"},
-        temperature=0.3,
-        max_tokens=800,
-    )
-    return completion.choices[0].message.content or ""
-'''
-
-def _call_groq(user_prompt: str, api_key: str) -> str:
-    from groq import Groq
-    client = Groq(api_key=api_key, timeout=10.0)
-    completion = client.chat.completions.create(
-        model="openai/gpt-oss-20b",   # swap off the preview qwen model
-        messages=[
-            {"role": "system", "content": _SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ],
-        response_format={"type": "json_object"},
-        temperature=0.3,
-        max_tokens=1500,   # give it more headroom to finish the JSON
+        temperature=0.6,   # higher temp for natural phrasing; facts are
+                           # constrained by the JSON input, not the model
+        max_tokens=1500,
     )
     return completion.choices[0].message.content or ""
 
@@ -250,9 +260,10 @@ def _call_gemini(user_prompt: str, api_key: str) -> str:
         model="gemini-3.6-flash",
         contents=f"{_SYSTEM_PROMPT}\n\n{user_prompt}",
         config=genai.types.GenerateContentConfig(
-            temperature=0.3,
             max_output_tokens=800,
             response_mime_type="application/json",
+            # temperature/top_p/top_k removed — Gemini 3.6 Flash no longer
+            # accepts these sampling params; passing them can error or be ignored
         ),
     )
     return response.text or ""

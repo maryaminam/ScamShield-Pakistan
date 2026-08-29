@@ -59,7 +59,10 @@ HISTORY_LOCK = Lock()
 REPORT_CACHE: dict[str, dict] = {}
 REPORT_CACHE_LOCK = Lock()
 _SUSPICIOUS_TLDS = {"xyz", "top", "tk", "club", "info", "work"}
-_ENRICHMENT_BUDGET_SECONDS = 2.5
+# WHOIS checks can legitimately stall on slow registries. Keep the overall
+# enrichment budget generous enough for optional reputation data without
+# hanging the main report response.
+_ENRICHMENT_BUDGET_SECONDS = 8.0
 
 
 def _find_available_port(start_port: int, host: str = "127.0.0.1") -> int:
@@ -99,7 +102,7 @@ def build_recommendations(risk_level: str | None, spoofing: dict, patterns: dict
 def _run_email_enrichment(analyzer: EmailForensicAnalyzer) -> tuple[dict, dict, dict]:
     """Run slow, optional reputation lookups concurrently with a short budget."""
     defaults = {
-        "domain_rep": {"domain": None, "error": "Domain reputation lookup timed out"},
+        "domain_rep": {"domain": None, "error": "Domain reputation lookup unavailable"},
         "dns": {
             "domain": None, "error": "DNS enrichment timed out",
             "spf": {"record": None, "exists": False},
@@ -147,6 +150,7 @@ def _render_html_report(raw_text: str, analysis: dict) -> str:
         header_analysis=analysis["header_analysis"], geo=[], urls=analysis["urls"],
         attachments=analysis["attachments"], domain_rep=analysis["domain_rep"],
         threat_intel=analysis["threat_intel"],
+        url_domain_reps=analysis.get("url_domain_reps"),
     )
 
 
@@ -167,9 +171,12 @@ def _analyze_email(raw_text: str) -> dict:
     }
     patterns = analyzer.detect_phishing_patterns()
     domain_rep, dns, abuse = _run_email_enrichment(analyzer)
+    url_domain_reps = analyzer.check_url_domain_reputation(urls=urls)
     risk = analyzer.calculate_risk_score(
         auth=auth, urls=urls, attachments=attachments, domain_rep=domain_rep,
         abuse=abuse, patterns=patterns, spoofing=spoofing,
+        header_anomalies=header_analysis["anomalies"],
+        url_domain_reps=url_domain_reps,
     )
     threat_intel = {"dns": dns, "patterns": patterns, "abuse": abuse, "risk": risk}
     iocs = analyzer.extract_iocs(routing=routing, urls=urls, attachments=attachments, metadata=metadata)
@@ -178,6 +185,7 @@ def _analyze_email(raw_text: str) -> dict:
         "attachments": attachments, "domain_rep": domain_rep, "threat_intel": threat_intel,
         "iocs": iocs, "vt_results": [],
         "spoofing": spoofing, "header_analysis": header_analysis,
+        "url_domain_reps": url_domain_reps,
     }
 
 
