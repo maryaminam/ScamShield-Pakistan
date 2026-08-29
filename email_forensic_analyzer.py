@@ -162,6 +162,27 @@ _BRAND_DOMAINS = {
     "chase": {"chase.com", "jpmorgan.com"},
     "wells fargo": {"wellsfargo.com"},
     "bank of america": {"bankofamerica.com", "bofa.com"},
+    # --- Cryptocurrency exchanges ---
+    "binance": {"binance.com", "binance.info", "binance.us"},
+    "coinbase": {"coinbase.com"},
+    "kraken": {"kraken.com"},
+    "kucoin": {"kucoin.com"},
+    "bybit": {"bybit.com"},
+    "okx": {"okx.com"},
+    # --- Pakistani banks, fintech & government services ---
+    "easypaisa": {"easypaisa.com.pk", "telenor.com.pk"},
+    "jazzcash": {"jazzcash.com.pk", "jazz.com.pk"},
+    "hbl": {"hbl.com", "hblpay.com.pk"},
+    "meezan bank": {"meezanbank.com"},
+    "ubl": {"ubldigital.com", "ubl.com.pk"},
+    "bank alfalah": {"bankalfalah.com"},
+    "mcb": {"mcb.com.pk"},
+    "allied bank": {"abl.com", "abl.com.pk"},
+    "nayapay": {"nayapay.com"},
+    "sadapay": {"sadapay.pk"},
+    "state bank of pakistan": {"sbp.org.pk"},
+    "fbr": {"fbr.gov.pk"},
+    "nadra": {"nadra.gov.pk"},
 }
 
 # Free webmail providers — corporate-sounding display names from these are
@@ -639,7 +660,15 @@ class EmailForensicAnalyzer:
                 "error": f"WHOIS lookup timed out after {_WHOIS_TIMEOUT_SECONDS}s",
             }
         except Exception as exc:
-            return {"domain": domain, "error": f"WHOIS lookup failed: {exc}"}
+            exc_text = str(exc)
+            if len(exc_text) > 150 or "TERMS OF USE" in exc_text.upper():
+                error_msg = (
+                    f"WHOIS lookup failed: {domain} not found or "
+                    f"registry did not respond"
+                )
+            else:
+                error_msg = f"WHOIS lookup failed: {exc_text}"
+            return {"domain": domain, "error": error_msg}
 
         creation = w.creation_date
         # Some registrars return a list of dates.
