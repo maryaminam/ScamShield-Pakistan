@@ -1073,16 +1073,41 @@ class EmailForensicAnalyzer:
         breakdown: dict[str, tuple[int, str]] = {}
 
         # 0. Identity spoofing (display-name / Reply-To / Return-Path)
+        # Multiple findings contribute with diminishing returns: the first
+        # (highest-severity) finding receives its full weight, each additional
+        # finding receives a smaller fixed bonus.  The total is capped at
+        # 1.5× the base weight so this category alone can't dominate the
+        # score even with many piled-up findings.
         if spoofing.get("is_spoofed"):
-            sev = spoofing.get("severity", "medium")
-            pts = _WEIGHTS["spoofing"] if sev == "high" else _WEIGHTS["spoofing"] // 2
-            score += pts
-            top_msg = next(
-                (f["message"] for f in spoofing.get("findings", [])
-                 if f["severity"] == sev),
-                "Identity spoofing indicators present",
+            _sev_order = {"high": 0, "medium": 1, "low": 2}
+            sorted_findings = sorted(
+                spoofing.get("findings", []),
+                key=lambda f: _sev_order.get(f.get("severity", "low"), 2),
             )
-            breakdown["spoofing"] = (pts, top_msg)
+            spoofing_cap = _WEIGHTS["spoofing"] + _WEIGHTS["spoofing"] // 2
+            spoof_pts = 0
+            for i, finding in enumerate(sorted_findings):
+                sev = finding.get("severity", "low")
+                if i == 0:
+                    # First (highest-severity) finding: full weight
+                    if sev == "high":
+                        pts = _WEIGHTS["spoofing"]
+                    elif sev == "medium":
+                        pts = _WEIGHTS["spoofing"] // 2
+                    else:
+                        pts = _WEIGHTS["spoofing"] // 4
+                else:
+                    # Additional findings: smaller fixed bonus
+                    if sev in ("high", "medium"):
+                        pts = _WEIGHTS["spoofing"] // 4
+                    else:
+                        pts = _WEIGHTS["spoofing"] // 8
+                spoof_pts = min(spoof_pts + pts, spoofing_cap)
+            score += spoof_pts
+            breakdown["spoofing"] = (
+                spoof_pts,
+                "; ".join(f["message"] for f in sorted_findings),
+            )
 
         # 1. Authentication failures
         if auth.get("is_suspicious"):

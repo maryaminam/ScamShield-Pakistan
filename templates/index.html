@@ -1,41 +1,982 @@
 <!doctype html>
 <html lang="en" data-theme="light">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f5f5f7">
   <title>ScamShield Pakistan — Security made clear</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>tailwind.config={theme:{extend:{colors:{surface:'#ffffff',panel:'#ffffff'}}}};</script>
+  <script>tailwind.config = { theme: { extend: { colors: { surface: '#ffffff', panel: '#ffffff' } } } };</script>
   <style>
-    :root{color-scheme:light;--bg:#f5f5f7;--surface:rgba(255,255,255,.76);--surface-solid:#fff;--surface-soft:#f7f7f9;--text:#1d1d1f;--muted:#6e6e73;--faint:#929299;--line:rgba(29,29,31,.10);--line-strong:rgba(29,29,31,.16);--accent:#0071e3;--accent-hover:#0077ed;--accent-soft:rgba(0,113,227,.10);--shadow:0 12px 32px rgba(20,20,30,.07);--shadow-lift:0 18px 42px rgba(20,20,30,.13);--gauge-track:#d9d9df}
-    html[data-theme="dark"]{color-scheme:dark;--bg:#292c31;--surface:rgba(52,56,63,.80);--surface-solid:#34383f;--surface-soft:#3b3f46;--text:#f5f5f7;--muted:#b0b3ba;--faint:#858a93;--line:rgba(255,255,255,.11);--line-strong:rgba(255,255,255,.18);--accent:#2997ff;--accent-hover:#5aadff;--accent-soft:rgba(41,151,255,.15);--shadow:0 12px 32px rgba(0,0,0,.16);--shadow-lift:0 20px 46px rgba(0,0,0,.26);--gauge-track:#545962}
-    *{box-sizing:border-box}html{background:var(--bg)}body{margin:0;background:radial-gradient(900px 540px at 88% -10%,rgba(0,113,227,.13),transparent 65%),radial-gradient(700px 500px at 15% 110%,rgba(116,99,255,.08),transparent 65%),var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Segoe UI",sans-serif;letter-spacing:-.012em;transition:background .35s ease,color .25s ease}.app-shell{min-height:100vh}.sidebar{background:color-mix(in srgb,var(--surface-solid) 84%,transparent);border-color:var(--line);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}.brand-mark{box-shadow:0 8px 18px rgba(0,113,227,.26)}.brand-mark svg{width:21px;height:21px}.brand-name{letter-spacing:-.04em}.app-main{max-width:1580px;margin:0 auto}.page{animation:page-in .42s cubic-bezier(.2,.8,.2,1)}.eyebrow{color:var(--accent);font-size:11px;font-weight:700;letter-spacing:.11em}.page-title{color:var(--text);font-size:clamp(2.25rem,4vw,3.5rem);font-weight:700;letter-spacing:-.055em;line-height:1.04}.page-copy{color:var(--muted);font-size:1.05rem;line-height:1.55;max-width:40rem}.nav-item{border-left-color:transparent!important;border-radius:11px;color:var(--muted);font-weight:550;letter-spacing:-.01em}.nav-item:hover{background:var(--surface-soft)!important;color:var(--text)!important;transform:translateX(2px)}.nav-item.active{background:var(--accent-soft)!important;color:var(--accent)!important;border-left-color:transparent!important}.nav-icon{width:17px;height:17px;stroke:currentColor;stroke-width:1.8;fill:none}.theme-toggle{border:1px solid var(--line);background:var(--surface-soft);color:var(--text);transition:transform .2s ease,background .2s ease,border-color .2s ease}.theme-toggle:hover{transform:translateY(-1px);border-color:var(--line-strong);background:var(--surface-solid)}.theme-toggle svg{width:17px;height:17px}.glass-card,.bg-panel{background:var(--surface)!important;border-color:var(--line)!important;box-shadow:var(--shadow);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}.bg-slate-950,.bg-slate-900,.bg-slate-900\/60,.bg-slate-800{background-color:var(--surface-soft)!important}.bg-sky-500{background-color:var(--accent)!important}.hover\:bg-sky-400:hover{background-color:var(--accent-hover)!important}.border-slate-800,.border-slate-700{border-color:var(--line)!important}.divide-slate-800>*+*{border-color:var(--line)!important}.border-b.border-slate-800{border-color:var(--line)!important}.text-slate-100,.text-slate-200,.text-slate-300{color:var(--text)!important}.text-slate-400,.text-slate-500{color:var(--muted)!important}.text-slate-950{color:#fff!important}.text-sky-300,.text-sky-400{color:var(--accent)!important}.hover\:text-sky-300:hover,.hover\:text-white:hover{color:var(--accent-hover)!important}.text-green-300{color:#23834e!important}.text-red-300{color:#dc3b35!important}.text-orange-300{color:#d75e22!important}.text-yellow-200{color:#a56e00!important}html[data-theme="dark"] .text-green-300{color:#66d58a!important}html[data-theme="dark"] .text-red-300{color:#ff8b84!important}html[data-theme="dark"] .text-orange-300{color:#ffa066!important}html[data-theme="dark"] .text-yellow-200{color:#ffd66b!important}
-    input,textarea{background:var(--surface-soft)!important;border-color:var(--line)!important;color:var(--text)!important;box-shadow:none!important;transition:border-color .2s ease,box-shadow .2s ease,background .2s ease!important}input::placeholder,textarea::placeholder{color:var(--faint)}input:focus,textarea:focus{border-color:var(--accent)!important;box-shadow:0 0 0 4px var(--accent-soft)!important}input[type=file]::file-selector-button{background:var(--accent)!important;color:#fff!important;border-radius:8px!important;transition:background .2s ease}button{transition:transform .2s ease,background .2s ease,box-shadow .2s ease,color .2s ease}button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--accent-soft);outline-offset:3px}.bg-sky-500{box-shadow:0 6px 14px rgba(0,113,227,.18)}button.bg-sky-500:hover{transform:translateY(-1px);box-shadow:0 9px 18px rgba(0,113,227,.25)}
-    #stat-cards>div{background:var(--surface)!important;border-color:var(--line)!important;box-shadow:var(--shadow);transition:transform .28s cubic-bezier(.2,.8,.2,1),box-shadow .28s ease,border-color .28s ease}#stat-cards>div:hover{transform:translateY(-4px);box-shadow:var(--shadow-lift);border-color:var(--line-strong)!important}#email-results>.rounded-2xl,#url-results>.grid>div,.page>.rounded-2xl{border-color:var(--line)!important;box-shadow:var(--shadow)}#email-results .rounded-2xl,#email-results .rounded-xl,#email-results .rounded-lg,#url-results .rounded-2xl,#url-results .rounded-lg{border-color:var(--line)}.email-tabs{display:flex;gap:.25rem;padding:.3rem;border:1px solid var(--line);border-radius:999px;background:color-mix(in srgb,var(--surface-solid) 58%,transparent);box-shadow:inset 0 1px 0 rgba(255,255,255,.16);scrollbar-width:none}.email-tabs::-webkit-scrollbar{display:none}.tab-button{position:relative;border:0!important;border-radius:999px;color:var(--muted);font-weight:600;line-height:1;transition:color .22s ease,background .25s ease,box-shadow .25s ease,transform .25s cubic-bezier(.2,.8,.2,1)}.tab-button:hover{color:var(--text)!important;background:var(--surface-soft);transform:translateY(-1px)}.tab-button.active{color:var(--accent)!important;background:var(--surface-solid)!important;box-shadow:0 3px 10px rgba(24,24,31,.11),inset 0 0 0 1px var(--line)!important;transform:translateY(-1px)}html[data-theme="dark"] .tab-button.active{box-shadow:0 4px 12px rgba(0,0,0,.22),inset 0 0 0 1px var(--line)!important}.scrollbar::-webkit-scrollbar{height:7px;width:7px}.scrollbar::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:999px}.gauge-progress{transition:stroke-dashoffset 900ms cubic-bezier(.2,.8,.2,1)}svg circle:first-child{stroke:var(--gauge-track)!important}.inline-flex.rounded-full{font-weight:650}.bg-red-500\/15{background:rgba(220,59,53,.12)!important}.bg-orange-500\/15{background:rgba(215,94,34,.13)!important}.bg-yellow-400\/15{background:rgba(213,146,0,.13)!important}.bg-green-500\/15{background:rgba(35,131,78,.12)!important}.bg-sky-500\/10{background:var(--accent-soft)!important;border-color:rgba(0,113,227,.25)!important}.font-mono{font-family:"SF Mono",SFMono-Regular,Consolas,monospace}.empty-state{border-color:var(--line)!important;color:var(--muted)!important}.button-loader{display:inline-block;width:15px;height:15px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite}.analysis-skeleton{display:grid;gap:1.25rem;animation:page-in .25s ease}.skeleton-card{background:var(--surface);border:1px solid var(--line);border-radius:1.5rem;padding:1.5rem;box-shadow:var(--shadow)}.skeleton-line{height:.72rem;border-radius:999px;background:linear-gradient(90deg,var(--surface-soft) 20%,var(--line) 50%,var(--surface-soft) 80%);background-size:220% 100%;animation:shimmer 1.3s ease-in-out infinite}.skeleton-ring{width:9rem;height:9rem;border:10px solid var(--surface-soft);border-top-color:var(--accent);border-radius:50%;animation:spin 1.15s linear infinite}.skeleton-label{color:var(--muted);font-size:.875rem}.analysis-error{background:rgba(220,59,53,.08);border:1px solid rgba(220,59,53,.25);color:var(--text);border-radius:1rem;padding:1rem 1.25rem;animation:page-in .25s ease}@keyframes spin{to{transform:rotate(360deg)}}@keyframes shimmer{to{background-position:-220% 0}}
-    @keyframes page-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}@media(max-width:767px){.sidebar{position:sticky;top:0;z-index:30}.nav-item{border-left:0!important}.app-main{padding-top:1.4rem}.page-title{font-size:2.35rem}}@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
+    :root {
+      color-scheme: light;
+      --bg: #f5f5f7;
+      --surface: rgba(255, 255, 255, .76);
+      --surface-solid: #fff;
+      --surface-soft: #f7f7f9;
+      --text: #1d1d1f;
+      --muted: #6e6e73;
+      --faint: #929299;
+      --line: rgba(29, 29, 31, .10);
+      --line-strong: rgba(29, 29, 31, .16);
+      --accent: #0071e3;
+      --accent-hover: #0077ed;
+      --accent-soft: rgba(0, 113, 227, .10);
+      --shadow: 0 12px 32px rgba(20, 20, 30, .07);
+      --shadow-lift: 0 18px 42px rgba(20, 20, 30, .13);
+      --gauge-track: #d9d9df
+    }
+
+    html[data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #292c31;
+      --surface: rgba(52, 56, 63, .80);
+      --surface-solid: #34383f;
+      --surface-soft: #3b3f46;
+      --text: #f5f5f7;
+      --muted: #b0b3ba;
+      --faint: #858a93;
+      --line: rgba(255, 255, 255, .11);
+      --line-strong: rgba(255, 255, 255, .18);
+      --accent: #2997ff;
+      --accent-hover: #5aadff;
+      --accent-soft: rgba(41, 151, 255, .15);
+      --shadow: 0 12px 32px rgba(0, 0, 0, .16);
+      --shadow-lift: 0 20px 46px rgba(0, 0, 0, .26);
+      --gauge-track: #545962
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    html {
+      background: var(--bg)
+    }
+
+    body {
+      margin: 0;
+      background: radial-gradient(900px 540px at 88% -10%, rgba(0, 113, 227, .13), transparent 65%), radial-gradient(700px 500px at 15% 110%, rgba(116, 99, 255, .08), transparent 65%), var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif;
+      letter-spacing: -.012em;
+      transition: background .35s ease, color .25s ease
+    }
+
+    .app-shell {
+      min-height: 100vh
+    }
+
+    .sidebar {
+      background: color-mix(in srgb, var(--surface-solid) 84%, transparent);
+      border-color: var(--line);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px)
+    }
+
+    .brand-mark {
+      box-shadow: 0 8px 18px rgba(0, 113, 227, .26)
+    }
+
+    .brand-mark svg {
+      width: 21px;
+      height: 21px
+    }
+
+    .brand-name {
+      letter-spacing: -.04em
+    }
+
+    .app-main {
+      max-width: 1580px;
+      margin: 0 auto
+    }
+
+    .page {
+      animation: page-in .42s cubic-bezier(.2, .8, .2, 1)
+    }
+
+    .eyebrow {
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .11em
+    }
+
+    .page-title {
+      color: var(--text);
+      font-size: clamp(2.25rem, 4vw, 3.5rem);
+      font-weight: 700;
+      letter-spacing: -.055em;
+      line-height: 1.04
+    }
+
+    .page-copy {
+      color: var(--muted);
+      font-size: 1.05rem;
+      line-height: 1.55;
+      max-width: 40rem
+    }
+
+    .nav-item {
+      border-left-color: transparent !important;
+      border-radius: 11px;
+      color: var(--muted);
+      font-weight: 550;
+      letter-spacing: -.01em
+    }
+
+    .nav-item:hover {
+      background: var(--surface-soft) !important;
+      color: var(--text) !important;
+      transform: translateX(2px)
+    }
+
+    .nav-item.active {
+      background: var(--accent-soft) !important;
+      color: var(--accent) !important;
+      border-left-color: transparent !important
+    }
+
+    .nav-icon {
+      width: 17px;
+      height: 17px;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      fill: none
+    }
+
+    .theme-toggle {
+      border: 1px solid var(--line);
+      background: var(--surface-soft);
+      color: var(--text);
+      transition: transform .2s ease, background .2s ease, border-color .2s ease
+    }
+
+    .theme-toggle:hover {
+      transform: translateY(-1px);
+      border-color: var(--line-strong);
+      background: var(--surface-solid)
+    }
+
+    .theme-toggle svg {
+      width: 17px;
+      height: 17px
+    }
+
+    .glass-card,
+    .bg-panel {
+      background: var(--surface) !important;
+      border-color: var(--line) !important;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px)
+    }
+
+    .bg-slate-950,
+    .bg-slate-900,
+    .bg-slate-900\/60,
+    .bg-slate-800 {
+      background-color: var(--surface-soft) !important
+    }
+
+    .bg-sky-500 {
+      background-color: var(--accent) !important
+    }
+
+    .hover\:bg-sky-400:hover {
+      background-color: var(--accent-hover) !important
+    }
+
+    .border-slate-800,
+    .border-slate-700 {
+      border-color: var(--line) !important
+    }
+
+    .divide-slate-800>*+* {
+      border-color: var(--line) !important
+    }
+
+    .border-b.border-slate-800 {
+      border-color: var(--line) !important
+    }
+
+    .text-slate-100,
+    .text-slate-200,
+    .text-slate-300 {
+      color: var(--text) !important
+    }
+
+    .text-slate-400,
+    .text-slate-500 {
+      color: var(--muted) !important
+    }
+
+    .text-slate-950 {
+      color: #fff !important
+    }
+
+    .text-sky-300,
+    .text-sky-400 {
+      color: var(--accent) !important
+    }
+
+    .hover\:text-sky-300:hover,
+    .hover\:text-white:hover {
+      color: var(--accent-hover) !important
+    }
+
+    .text-green-300 {
+      color: #23834e !important
+    }
+
+    .text-red-300 {
+      color: #dc3b35 !important
+    }
+
+    .text-orange-300 {
+      color: #d75e22 !important
+    }
+
+    .text-yellow-200 {
+      color: #a56e00 !important
+    }
+
+    html[data-theme="dark"] .text-green-300 {
+      color: #66d58a !important
+    }
+
+    html[data-theme="dark"] .text-red-300 {
+      color: #ff8b84 !important
+    }
+
+    html[data-theme="dark"] .text-orange-300 {
+      color: #ffa066 !important
+    }
+
+    html[data-theme="dark"] .text-yellow-200 {
+      color: #ffd66b !important
+    }
+
+    input,
+    textarea {
+      background: var(--surface-soft) !important;
+      border-color: var(--line) !important;
+      color: var(--text) !important;
+      box-shadow: none !important;
+      transition: border-color .2s ease, box-shadow .2s ease, background .2s ease !important
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+      color: var(--faint)
+    }
+
+    input:focus,
+    textarea:focus {
+      border-color: var(--accent) !important;
+      box-shadow: 0 0 0 4px var(--accent-soft) !important
+    }
+
+    input[type=file]::file-selector-button {
+      background: var(--accent) !important;
+      color: #fff !important;
+      border-radius: 8px !important;
+      transition: background .2s ease
+    }
+
+    button {
+      transition: transform .2s ease, background .2s ease, box-shadow .2s ease, color .2s ease
+    }
+
+    button:focus-visible,
+    a:focus-visible,
+    input:focus-visible,
+    textarea:focus-visible {
+      outline: 3px solid var(--accent-soft);
+      outline-offset: 3px
+    }
+
+    .bg-sky-500 {
+      box-shadow: 0 6px 14px rgba(0, 113, 227, .18)
+    }
+
+    button.bg-sky-500:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 9px 18px rgba(0, 113, 227, .25)
+    }
+
+    #stat-cards>div {
+      background: var(--surface) !important;
+      border-color: var(--line) !important;
+      box-shadow: var(--shadow);
+      transition: transform .28s cubic-bezier(.2, .8, .2, 1), box-shadow .28s ease, border-color .28s ease
+    }
+
+    #stat-cards>div:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lift);
+      border-color: var(--line-strong) !important
+    }
+
+    #email-results>.rounded-2xl,
+    #url-results>.grid>div,
+    .page>.rounded-2xl {
+      border-color: var(--line) !important;
+      box-shadow: var(--shadow)
+    }
+
+    #email-results .rounded-2xl,
+    #email-results .rounded-xl,
+    #email-results .rounded-lg,
+    #url-results .rounded-2xl,
+    #url-results .rounded-lg {
+      border-color: var(--line)
+    }
+
+    .email-tabs {
+      display: flex;
+      gap: .25rem;
+      padding: .3rem;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--surface-solid) 58%, transparent);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .16);
+      scrollbar-width: none
+    }
+
+    .email-tabs::-webkit-scrollbar {
+      display: none
+    }
+
+    .tab-button {
+      position: relative;
+      border: 0 !important;
+      border-radius: 999px;
+      color: var(--muted);
+      font-weight: 600;
+      line-height: 1;
+      transition: color .22s ease, background .25s ease, box-shadow .25s ease, transform .25s cubic-bezier(.2, .8, .2, 1)
+    }
+
+    .tab-button:hover {
+      color: var(--text) !important;
+      background: var(--surface-soft);
+      transform: translateY(-1px)
+    }
+
+    .tab-button.active {
+      color: var(--accent) !important;
+      background: var(--surface-solid) !important;
+      box-shadow: 0 3px 10px rgba(24, 24, 31, .11), inset 0 0 0 1px var(--line) !important;
+      transform: translateY(-1px)
+    }
+
+    html[data-theme="dark"] .tab-button.active {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, .22), inset 0 0 0 1px var(--line) !important
+    }
+
+    .scrollbar::-webkit-scrollbar {
+      height: 7px;
+      width: 7px
+    }
+
+    .scrollbar::-webkit-scrollbar-thumb {
+      background: var(--line-strong);
+      border-radius: 999px
+    }
+
+    .gauge-progress {
+      transition: stroke-dashoffset 900ms cubic-bezier(.2, .8, .2, 1)
+    }
+
+    svg circle:first-child {
+      stroke: var(--gauge-track) !important
+    }
+
+    .inline-flex.rounded-full {
+      font-weight: 650
+    }
+
+    .bg-red-500\/15 {
+      background: rgba(220, 59, 53, .12) !important
+    }
+
+    .bg-orange-500\/15 {
+      background: rgba(215, 94, 34, .13) !important
+    }
+
+    .bg-yellow-400\/15 {
+      background: rgba(213, 146, 0, .13) !important
+    }
+
+    .bg-green-500\/15 {
+      background: rgba(35, 131, 78, .12) !important
+    }
+
+    .bg-sky-500\/10 {
+      background: var(--accent-soft) !important;
+      border-color: rgba(0, 113, 227, .25) !important
+    }
+
+    .font-mono {
+      font-family: "SF Mono", SFMono-Regular, Consolas, monospace
+    }
+
+    .empty-state {
+      border-color: var(--line) !important;
+      color: var(--muted) !important
+    }
+
+    .button-loader {
+      display: inline-block;
+      width: 15px;
+      height: 15px;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 50%;
+      animation: spin .7s linear infinite
+    }
+
+    .analysis-skeleton {
+      display: grid;
+      gap: 1.25rem;
+      animation: page-in .25s ease
+    }
+
+    .skeleton-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 1.5rem;
+      padding: 1.5rem;
+      box-shadow: var(--shadow)
+    }
+
+    .skeleton-line {
+      height: .72rem;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--surface-soft) 20%, var(--line) 50%, var(--surface-soft) 80%);
+      background-size: 220% 100%;
+      animation: shimmer 1.3s ease-in-out infinite
+    }
+
+    .skeleton-ring {
+      width: 9rem;
+      height: 9rem;
+      border: 10px solid var(--surface-soft);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1.15s linear infinite
+    }
+
+    .skeleton-label {
+      color: var(--muted);
+      font-size: .875rem
+    }
+
+    .analysis-error {
+      background: rgba(220, 59, 53, .08);
+      border: 1px solid rgba(220, 59, 53, .25);
+      color: var(--text);
+      border-radius: 1rem;
+      padding: 1rem 1.25rem;
+      animation: page-in .25s ease
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg)
+      }
+    }
+
+    @keyframes shimmer {
+      to {
+        background-position: -220% 0
+      }
+    }
+
+    /* ── AI Explanation Section ──────────────────────────────────── */
+    .ai-explanation-container {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      animation: page-in .42s cubic-bezier(.2, .8, .2, 1)
+    }
+
+    .ai-provider-row {
+      margin-bottom: .25rem
+    }
+
+    .ai-summary-hero,
+    .ai-concerns-section,
+    .ai-meaning-panel,
+    .ai-actions-section {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 1.25rem;
+      padding: 1.5rem 1.75rem;
+      box-shadow: var(--shadow);
+      animation: ai-card-in .5s cubic-bezier(.2, .8, .2, 1) both;
+      transition: transform .25s cubic-bezier(.2, .8, .2, 1), box-shadow .25s ease, border-color .25s ease
+    }
+
+    .ai-summary-hero:hover,
+    .ai-concerns-section:hover,
+    .ai-meaning-panel:hover,
+    .ai-actions-section:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lift);
+      border-color: var(--line-strong)
+    }
+
+    .ai-summary-hero {
+      border-left: 3px solid;
+      border-image: linear-gradient(180deg, #6366f1 0%, #0ea5e9 50%, #a855f7 100%) 1;
+      background: linear-gradient(135deg, color-mix(in srgb, #6366f1 5%, var(--surface)), var(--surface))
+    }
+
+    .ai-hero-header {
+      display: flex;
+      align-items: center;
+      gap: .65rem;
+      margin-bottom: .85rem
+    }
+
+    .ai-hero-icon {
+      width: 22px;
+      height: 22px;
+      color: #8b5cf6;
+      flex-shrink: 0;
+      animation: ai-sparkle 2.5s ease-in-out infinite
+    }
+
+    .ai-hero-header h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -.02em;
+      margin: 0;
+      color: var(--text)
+    }
+
+    .ai-hero-text {
+      font-size: .925rem;
+      line-height: 1.75;
+      color: var(--muted);
+      margin: 0
+    }
+
+    .ai-section-header {
+      display: flex;
+      align-items: center;
+      gap: .55rem;
+      margin-bottom: 1rem
+    }
+
+    .ai-section-header h3 {
+      font-size: .95rem;
+      font-weight: 700;
+      letter-spacing: -.015em;
+      margin: 0;
+      color: var(--text)
+    }
+
+    .ai-section-icon {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0
+    }
+
+    .ai-section-icon--warn {
+      color: #f59e0b
+    }
+
+    .ai-section-icon--info {
+      color: #6366f1
+    }
+
+    .ai-section-icon--action {
+      color: #22c55e
+    }
+
+    .ai-section-icon--safe {
+      color: #0ea5e9
+    }
+
+    .ai-concern-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 1.35rem;
+      height: 1.35rem;
+      border-radius: 999px;
+      background: rgba(245, 158, 11, .15);
+      color: #f59e0b;
+      font-size: .7rem;
+      font-weight: 700;
+      padding: 0 .45rem;
+      line-height: 1
+    }
+
+    .ai-concern-count--safe {
+      background: rgba(14, 165, 233, .15);
+      color: #0ea5e9
+    }
+
+    .ai-concern-card {
+      display: flex;
+      align-items: flex-start;
+      gap: .75rem;
+      padding: .85rem 1rem;
+      border-radius: .85rem;
+      background: var(--surface-soft);
+      border: 1px solid var(--line);
+      margin-bottom: .55rem;
+      animation: ai-card-in .45s cubic-bezier(.2, .8, .2, 1) both;
+      transition: transform .2s ease, background .2s ease, border-color .2s ease
+    }
+
+    .ai-concern-card:last-child {
+      margin-bottom: 0
+    }
+
+    .ai-concern-card:hover {
+      transform: translateX(3px);
+      border-color: rgba(245, 158, 11, .3);
+      background: color-mix(in srgb, #f59e0b 4%, var(--surface-soft))
+    }
+
+    .ai-concerns-list--safe .ai-concern-card:hover {
+      border-color: rgba(14, 165, 233, .3);
+      background: color-mix(in srgb, #0ea5e9 4%, var(--surface-soft))
+    }
+
+    .ai-concern-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #f59e0b;
+      margin-top: .45rem;
+      flex-shrink: 0;
+      box-shadow: 0 0 6px rgba(245, 158, 11, .4)
+    }
+
+    .ai-concerns-list--safe .ai-concern-dot {
+      background: #0ea5e9;
+      box-shadow: 0 0 6px rgba(14, 165, 233, .4)
+    }
+
+    .ai-concern-body {
+      display: flex;
+      align-items: flex-start;
+      gap: .5rem;
+      flex: 1
+    }
+
+    .ai-concern-icon {
+      width: 16px;
+      height: 16px;
+      color: #f59e0b;
+      flex-shrink: 0;
+      margin-top: .15rem
+    }
+
+    .ai-concerns-list--safe .ai-concern-icon {
+      color: #0ea5e9
+    }
+
+    .ai-concern-body span {
+      font-size: .875rem;
+      line-height: 1.6;
+      color: var(--text)
+    }
+
+    .ai-meaning-panel {
+      position: relative;
+      overflow: hidden;
+      border-left: 3px solid #6366f1;
+      background: linear-gradient(135deg, color-mix(in srgb, #6366f1 6%, var(--surface)), var(--surface))
+    }
+
+    .ai-meaning-glow {
+      position: absolute;
+      top: -40%;
+      right: -15%;
+      width: 220px;
+      height: 220px;
+      background: radial-gradient(circle, rgba(99, 102, 241, .12) 0%, transparent 70%);
+      pointer-events: none
+    }
+
+    .ai-meaning-content {
+      position: relative;
+      z-index: 1
+    }
+
+    .ai-meaning-content p {
+      font-size: .9rem;
+      line-height: 1.8;
+      color: var(--muted);
+      margin: 0
+    }
+
+    .ai-actions-section {
+      border-left: 3px solid #22c55e;
+      background: linear-gradient(135deg, color-mix(in srgb, #22c55e 4%, var(--surface)), var(--surface))
+    }
+
+    .ai-actions-track {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      position: relative;
+      padding-left: .85rem;
+      border-left: 2px dashed color-mix(in srgb, #22c55e 30%, var(--line))
+    }
+
+    .ai-action-step {
+      display: flex;
+      align-items: flex-start;
+      gap: .85rem;
+      padding: .7rem .9rem;
+      margin-left: -.85rem;
+      border-radius: .75rem;
+      animation: ai-card-in .4s cubic-bezier(.2, .8, .2, 1) both;
+      transition: transform .2s ease, background .2s ease
+    }
+
+    .ai-action-step:hover {
+      transform: translateX(3px);
+      background: color-mix(in srgb, #22c55e 5%, transparent)
+    }
+
+    .ai-action-number {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.65rem;
+      height: 1.65rem;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #fff;
+      font-size: .75rem;
+      font-weight: 700;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(34, 197, 94, .3)
+    }
+
+    .ai-action-step p {
+      font-size: .875rem;
+      line-height: 1.6;
+      color: var(--text);
+      margin: 0;
+      padding-top: .15rem
+    }
+
+    .ai-empty-note {
+      font-size: .875rem;
+      color: var(--faint);
+      font-style: italic;
+      margin: 0
+    }
+
+    @keyframes ai-card-in {
+      from {
+        opacity: 0;
+        transform: translateY(12px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    @keyframes ai-sparkle {
+
+      0%,
+      100% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1
+      }
+
+      50% {
+        transform: scale(1.15) rotate(8deg);
+        opacity: .8
+      }
+    }
+
+    @keyframes page-in {
+      from {
+        opacity: 0;
+        transform: translateY(10px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    @media(max-width:767px) {
+      .sidebar {
+        position: sticky;
+        top: 0;
+        z-index: 30
+      }
+
+      .nav-item {
+        border-left: 0 !important
+      }
+
+      .app-main {
+        padding-top: 1.4rem
+      }
+
+      .page-title {
+        font-size: 2.35rem
+      }
+    }
+
+    @media(prefers-reduced-motion:reduce) {
+
+      *,
+      *:before,
+      *:after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: .01ms !important
+      }
+    }
   </style>
   <script defer src="{{ url_for('static', filename='app.js') }}"></script>
 </head>
+
 <body class="min-h-screen">
   <div class="app-shell md:flex">
     <aside class="sidebar border-b md:fixed md:inset-y-0 md:w-72 md:border-b-0 md:border-r">
       <div class="flex items-center justify-between px-5 py-5 md:px-6 md:py-7">
-        <div class="flex items-center gap-3"><div class="brand-mark grid h-10 w-10 place-items-center rounded-[13px] bg-sky-500 text-white"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 5 6v5c0 5 3 8.5 7 10 4-1.5 7-5 7-10V6l-7-3Z"/><path d="m9.4 12 1.7 1.8 3.8-4"/></svg></div><div><p class="brand-name font-semibold leading-tight">ScamShield</p><p class="text-xs text-slate-400">Pakistan · Security desk</p></div></div>
-        <button class="theme-toggle grid h-10 w-10 place-items-center rounded-full md:hidden" data-theme-toggle aria-label="Switch theme"><svg data-theme-icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"></svg></button>
+        <div class="flex items-center gap-3">
+          <div class="brand-mark grid h-10 w-10 place-items-center rounded-[13px] bg-sky-500 text-white"><svg
+              viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 3 5 6v5c0 5 3 8.5 7 10 4-1.5 7-5 7-10V6l-7-3Z" />
+              <path d="m9.4 12 1.7 1.8 3.8-4" />
+            </svg></div>
+          <div>
+            <p class="brand-name font-semibold leading-tight">ScamShield</p>
+            <p class="text-xs text-slate-400">Pakistan · Security desk</p>
+          </div>
+        </div>
+        <button class="theme-toggle grid h-10 w-10 place-items-center rounded-full md:hidden" data-theme-toggle
+          aria-label="Switch theme"><svg data-theme-icon viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="1.8"></svg></button>
       </div>
       <nav class="flex gap-1 overflow-x-auto px-3 pb-4 md:block md:space-y-1 md:px-4">
-        <button data-page-target="dashboard" class="nav-item active flex shrink-0 items-center gap-3 whitespace-nowrap px-4 py-3 text-left text-sm md:w-full"><svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard</button>
-        <button data-page-target="email" class="nav-item flex shrink-0 items-center gap-3 whitespace-nowrap px-4 py-3 text-left text-sm md:w-full"><svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>Email analysis</button>
-        <button data-page-target="url" class="nav-item flex shrink-0 items-center gap-3 whitespace-nowrap px-4 py-3 text-left text-sm md:w-full"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.1-.1l-2 2a5 5 0 0 0 7.1 7.1l1.1-1.1"/></svg>URL analysis</button>
+        <button data-page-target="dashboard"
+          class="nav-item active flex shrink-0 items-center gap-3 whitespace-nowrap px-4 py-3 text-left text-sm md:w-full"><svg
+            class="nav-icon" viewBox="0 0 24 24">
+            <rect x="3" y="3" width="7" height="7" rx="1" />
+            <rect x="14" y="3" width="7" height="7" rx="1" />
+            <rect x="3" y="14" width="7" height="7" rx="1" />
+            <rect x="14" y="14" width="7" height="7" rx="1" />
+          </svg>Dashboard</button>
+        <button data-page-target="email"
+          class="nav-item flex shrink-0 items-center gap-3 whitespace-nowrap px-4 py-3 text-left text-sm md:w-full"><svg
+            class="nav-icon" viewBox="0 0 24 24">
+            <rect x="3" y="5" width="18" height="14" rx="2" />
+            <path d="m3 7 9 6 9-6" />
+          </svg>Email analysis</button>
+        <button data-page-target="url"
+          class="nav-item flex shrink-0 items-center gap-3 whitespace-nowrap px-4 py-3 text-left text-sm md:w-full"><svg
+            class="nav-icon" viewBox="0 0 24 24">
+            <path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1" />
+            <path d="M14 11a5 5 0 0 0-7.1-.1l-2 2a5 5 0 0 0 7.1 7.1l1.1-1.1" />
+          </svg>URL analysis</button>
       </nav>
-      <div class="absolute bottom-0 hidden w-full px-6 pb-7 md:block"><button class="theme-toggle flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium" data-theme-toggle><svg data-theme-icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"></svg><span data-theme-label>Dark appearance</span></button><p class="mt-4 text-center text-xs text-slate-500">Forensic triage, made clear.</p></div>
+      <div class="absolute bottom-0 hidden w-full px-6 pb-7 md:block"><button
+          class="theme-toggle flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium"
+          data-theme-toggle><svg data-theme-icon viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="1.8"></svg><span data-theme-label>Dark appearance</span></button>
+        <p class="mt-4 text-center text-xs text-slate-500">Forensic triage, made clear.</p>
+      </div>
     </aside>
     <main class="app-main min-w-0 flex-1 p-5 md:ml-72 md:p-10 lg:p-14">
-      <section data-page="dashboard" class="page space-y-8"><div><p class="eyebrow">SECURITY OVERVIEW</p><h1 class="page-title mt-2">Security, at a glance.</h1><p class="page-copy mt-4">A calm, focused view of your ScamShield activity and the threats that need attention.</p></div><div id="stat-cards" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"></div><div class="glass-card rounded-3xl border p-5 sm:p-7"><div class="mb-5 flex items-center justify-between"><div><p class="text-sm font-semibold">Recent activity</p><p class="mt-1 text-sm text-slate-400">Latest scans in this session</p></div><button id="refresh-dashboard" class="rounded-full px-3 py-1.5 text-sm text-sky-400 hover:bg-sky-500/10">Refresh</button></div><div class="scrollbar overflow-x-auto"><table class="w-full min-w-[620px] text-left text-sm"><thead class="border-b border-slate-700 text-xs uppercase tracking-[.08em] text-slate-400"><tr><th class="px-3 py-3">Time</th><th class="px-3 py-3">Type</th><th class="px-3 py-3">Target</th><th class="px-3 py-3">Score</th><th class="px-3 py-3">Severity</th></tr></thead><tbody id="activity-table" class="divide-y divide-slate-800"></tbody></table></div></div></section>
-      <section data-page="email" class="page hidden space-y-8"><div><p class="eyebrow">EMAIL FORENSICS</p><h1 class="page-title mt-2">Know what’s behind the message.</h1><p class="page-copy mt-4">Upload an RFC 822 message or paste raw headers and content for a clear, evidence-led assessment.</p></div><form id="email-form" class="glass-card rounded-3xl border p-5 sm:p-7"><div class="grid gap-6"><label class="block"><span class="mb-2 block text-sm font-semibold">Email file <span class="font-normal text-slate-400">(.eml)</span></span><input name="email_file" type="file" accept=".eml,message/rfc822" class="block w-full rounded-xl border p-2 text-sm text-slate-300 file:mr-4 file:border-0 file:px-3 file:py-1.5 file:font-medium"></label><label class="block"><span class="mb-2 block text-sm font-semibold">Or paste raw email / headers</span><textarea name="raw_email" rows="6" placeholder="From: sender@example.com&#10;Subject: ..." class="w-full rounded-xl border p-3 font-mono text-xs text-slate-200 outline-none"></textarea></label></div><div class="mt-5 flex flex-wrap items-center gap-4"><button class="rounded-xl bg-sky-500 px-5 py-2.5 font-semibold text-white disabled:cursor-wait disabled:opacity-60">Analyze email</button><span id="email-status" class="text-sm text-slate-400"></span></div></form><div id="email-results" class="hidden"></div></section>
-      <section data-page="url" class="page hidden space-y-8"><div><p class="eyebrow">LINK INTELLIGENCE</p><h1 class="page-title mt-2">Trust the destination, not the disguise.</h1><p class="page-copy mt-4">Check destination hygiene, domain age, and published email protections before you follow a link.</p></div><form id="url-form" class="glass-card rounded-3xl border p-5 sm:p-7"><label class="block"><span class="mb-2 block text-sm font-semibold">URL to scan</span><div class="flex flex-col gap-3 sm:flex-row"><input name="url" required placeholder="https://example.com/sign-in" class="min-w-0 flex-1 rounded-xl border px-4 py-3 outline-none"><button class="rounded-xl bg-sky-500 px-6 py-3 font-semibold text-white disabled:cursor-wait disabled:opacity-60">Scan URL</button></div></label><p id="url-status" class="mt-3 text-sm text-slate-400"></p></form><div id="url-results" class="hidden"></div></section>
+      <section data-page="dashboard" class="page space-y-8">
+        <div>
+          <p class="eyebrow">SECURITY OVERVIEW</p>
+          <h1 class="page-title mt-2">Security, at a glance.</h1>
+          <p class="page-copy mt-4">A calm, focused view of your ScamShield activity and the threats that need
+            attention.</p>
+        </div>
+        <div id="stat-cards" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"></div>
+        <div class="glass-card rounded-3xl border p-5 sm:p-7">
+          <div class="mb-5 flex items-center justify-between">
+            <div>
+              <p class="text-sm font-semibold">Recent activity</p>
+              <p class="mt-1 text-sm text-slate-400">Latest scans in this session</p>
+            </div><button id="refresh-dashboard"
+              class="rounded-full px-3 py-1.5 text-sm text-sky-400 hover:bg-sky-500/10">Refresh</button>
+          </div>
+          <div class="scrollbar overflow-x-auto">
+            <table class="w-full min-w-[620px] text-left text-sm">
+              <thead class="border-b border-slate-700 text-xs uppercase tracking-[.08em] text-slate-400">
+                <tr>
+                  <th class="px-3 py-3">Time</th>
+                  <th class="px-3 py-3">Type</th>
+                  <th class="px-3 py-3">Target</th>
+                  <th class="px-3 py-3">Score</th>
+                  <th class="px-3 py-3">Severity</th>
+                </tr>
+              </thead>
+              <tbody id="activity-table" class="divide-y divide-slate-800"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+      <section data-page="email" class="page hidden space-y-8">
+        <div>
+          <p class="eyebrow">EMAIL FORENSICS</p>
+          <h1 class="page-title mt-2">Know what’s behind the message.</h1>
+          <p class="page-copy mt-4">Upload an RFC 822 message or paste raw headers and content for a clear, evidence-led
+            assessment.</p>
+        </div>
+        <form id="email-form" class="glass-card rounded-3xl border p-5 sm:p-7">
+          <div class="grid gap-6"><label class="block"><span class="mb-2 block text-sm font-semibold">Email file <span
+                  class="font-normal text-slate-400">(.eml)</span></span><input name="email_file" type="file"
+                accept=".eml,message/rfc822"
+                class="block w-full rounded-xl border p-2 text-sm text-slate-300 file:mr-4 file:border-0 file:px-3 file:py-1.5 file:font-medium"></label><label
+              class="block"><span class="mb-2 block text-sm font-semibold">Or paste raw email / headers</span><textarea
+                name="raw_email" rows="6" placeholder="From: sender@example.com&#10;Subject: ..."
+                class="w-full rounded-xl border p-3 font-mono text-xs text-slate-200 outline-none"></textarea></label>
+          </div>
+          <div class="mt-5 flex flex-wrap items-center gap-4"><button
+              class="rounded-xl bg-sky-500 px-5 py-2.5 font-semibold text-white disabled:cursor-wait disabled:opacity-60">Analyze
+              email</button><span id="email-status" class="text-sm text-slate-400"></span></div>
+        </form>
+        <div id="email-results" class="hidden"></div>
+      </section>
+      <section data-page="url" class="page hidden space-y-8">
+        <div>
+          <p class="eyebrow">LINK INTELLIGENCE</p>
+          <h1 class="page-title mt-2">Trust the destination, not the disguise.</h1>
+          <p class="page-copy mt-4">Check destination hygiene, domain age, and published email protections before you
+            follow a link.</p>
+        </div>
+        <form id="url-form" class="glass-card rounded-3xl border p-5 sm:p-7"><label class="block"><span
+              class="mb-2 block text-sm font-semibold">URL to scan</span>
+            <div class="flex flex-col gap-3 sm:flex-row"><input name="url" required
+                placeholder="https://example.com/sign-in"
+                class="min-w-0 flex-1 rounded-xl border px-4 py-3 outline-none"><button
+                class="rounded-xl bg-sky-500 px-6 py-3 font-semibold text-white disabled:cursor-wait disabled:opacity-60">Scan
+                URL</button></div>
+          </label>
+          <p id="url-status" class="mt-3 text-sm text-slate-400"></p>
+        </form>
+        <div id="url-results" class="hidden"></div>
+      </section>
     </main>
   </div>
 </body>
+
 </html>

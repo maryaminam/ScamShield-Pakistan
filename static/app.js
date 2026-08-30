@@ -21,14 +21,79 @@
     return `<span class="inline-flex items-center gap-1.5 rounded-full bg-yellow-400/15 px-2.5 py-1 text-xs font-semibold text-yellow-200 ring-1 ring-yellow-400/30"><svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>Automated summary (AI unavailable)</span>`;
   }
 
-  function renderAiContent(ai) {
-    return `<div class="space-y-5">`
-      + `<div>${providerLabel(ai.provider)}</div>`
-      + section('Summary', `<p class="text-sm leading-7 text-slate-300">${esc(ai.plain_summary)}</p>`)
-      + section('Key concerns', ai.key_concerns?.length ? `<ul class="space-y-2 text-sm text-slate-300">${ai.key_concerns.map(c => `<li class="flex gap-2"><span class="text-orange-300">⚠</span>${esc(c)}</li>`).join('')}</ul>` : empty('No specific concerns.'))
-      + section('What this means', `<p class="text-sm leading-7 text-slate-300">${esc(ai.what_this_means)}</p>`)
-      + section('Recommended actions', `<ol class="list-decimal space-y-2 pl-5 text-sm text-slate-300">${(ai.recommended_actions || []).map(a => `<li>${esc(a)}</li>`).join('')}</ol>`)
-      + `</div>`;
+  function renderAiContent(ai, riskLevel) {
+    const isSafe = riskLevel === 'Low';
+    const concernIcons = isSafe ? [
+      '<svg class="ai-concern-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd"/></svg>',
+      '<svg class="ai-concern-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z" clip-rule="evenodd"/></svg>'
+    ] : [
+      '<svg class="ai-concern-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.168 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 6zm0 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" clip-rule="evenodd"/></svg>',
+      '<svg class="ai-concern-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0zm-7-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM9 9a.75.75 0 0 0 0 1.5h.25a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25H9a.75.75 0 0 0 0 1.5h2a.75.75 0 0 0 0-1.5h-.25a.25.25 0 0 1-.25-.25v-2.5A.75.75 0 0 0 9.75 9H9z" clip-rule="evenodd"/></svg>',
+    ];
+    const concerns = (ai.key_concerns || []).map((c, i) => {
+      const icon = concernIcons[i % concernIcons.length];
+      return `<div class="ai-concern-card" style="animation-delay:${0.12 + i * 0.07}s">
+        <div class="ai-concern-dot"></div>
+        <div class="ai-concern-body">
+          ${icon}
+          <span>${esc(c)}</span>
+        </div>
+      </div>`;
+    }).join('');
+    const actions = (ai.recommended_actions || []).map((a, i) => {
+      return `<div class="ai-action-step" style="animation-delay:${0.2 + i * 0.08}s">
+        <div class="ai-action-number">${i + 1}</div>
+        <p>${esc(a)}</p>
+      </div>`;
+    }).join('');
+    return `<div class="ai-explanation-container">
+
+      <div class="ai-provider-row">${providerLabel(ai.provider)}</div>
+
+      <div class="ai-summary-hero" style="animation-delay:.05s">
+        <div class="ai-hero-header">
+          <svg class="ai-hero-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z"/></svg>
+          <h3>Summary</h3>
+        </div>
+        <p class="ai-hero-text">${esc(ai.plain_summary)}</p>
+      </div>
+
+      <div class="ai-concerns-section" style="animation-delay:.1s">
+        <div class="ai-section-header">
+          ${isSafe
+        ? `<svg class="ai-section-icon ai-section-icon--safe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>`
+        : `<svg class="ai-section-icon ai-section-icon--warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></svg>`
+      }
+          <h3>${isSafe ? 'Analysis highlights' : 'Key concerns'}</h3>
+          ${ai.key_concerns?.length ? `<span class="ai-concern-count ${isSafe ? 'ai-concern-count--safe' : ''}">${ai.key_concerns.length}</span>` : ''}
+        </div>
+        <div class="${isSafe ? 'ai-concerns-list--safe' : ''}">
+          ${concerns || '<p class="ai-empty-note">No specific findings identified.</p>'}
+        </div>
+      </div>
+
+      <div class="ai-meaning-panel" style="animation-delay:.16s">
+        <div class="ai-meaning-glow"></div>
+        <div class="ai-meaning-content">
+          <div class="ai-section-header">
+            <svg class="ai-section-icon ai-section-icon--info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.383a14.406 14.406 0 0 1-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 1 0-7.517 0c.85.493 1.509 1.333 1.509 2.316V18"/></svg>
+            <h3>What this means</h3>
+          </div>
+          <p>${esc(ai.what_this_means)}</p>
+        </div>
+      </div>
+
+      <div class="ai-actions-section" style="animation-delay:.22s">
+        <div class="ai-section-header">
+          <svg class="ai-section-icon ai-section-icon--action" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+          <h3>Recommended actions</h3>
+        </div>
+        <div class="ai-actions-track">
+          ${actions}
+        </div>
+      </div>
+
+    </div>`;
   }
 
   function aiLoadingState() {
@@ -99,7 +164,7 @@
     const tabs = [['overview', 'Overview'], ['auth', 'Authentication'], ['spoofing', 'Spoofing & Identity'], ['headers', 'Headers & Timing'], ['urls', 'URLs & Links'], ['attachments', 'Attachments'], ['domain', 'Domain Reputation'], ['patterns', 'Threat Patterns'], ['iocs', 'IOCs'], ['ai', 'AI Summary'], ['report', 'Report']];
     result.innerHTML = `<div class="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-800 bg-panel p-5"><div><p class="text-sm text-slate-400">Threat assessment</p><div class="mt-2 flex items-center gap-3">${badge(data.threat_intel.risk.level)}<span class="text-2xl font-semibold">${esc(data.threat_intel.risk.score)} / 100</span></div></div><p class="max-w-xl text-sm text-slate-400">${esc(data.metadata.Subject || 'No subject supplied')}</p></div><div class="email-tabs mb-5 overflow-x-auto" role="tablist" aria-label="Email analysis sections">${tabs.map(([id, label], index) => `<button data-email-tab="${id}" role="tab" aria-selected="${index === 0}" class="tab-button whitespace-nowrap px-4 py-3 text-sm ${index === 0 ? 'active' : ''}">${label}</button>`).join('')}</div><div id="email-tab-content"></div>`;
     const content = $('#email-tab-content');
-    const showTab = tab => { if (tab === 'ai') { if (_aiEmailCache) { content.innerHTML = renderAiContent(_aiEmailCache); } else { content.innerHTML = aiLoadingState(); fetchAiExplanation(data, 'email').then(ai => { _aiEmailCache = ai; content.innerHTML = renderAiContent(ai); }); } return; } content.innerHTML = emailTabContent(tab, data); animateGauges(content); content.querySelectorAll('[data-copy]').forEach(btn => btn.onclick = async () => { await navigator.clipboard?.writeText(btn.dataset.copy); btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = btn.dataset.copy; }, 900); }); if (tab === 'report') $('#download-report').onclick = async () => { const button = $('#download-report'); const label = button.textContent; button.disabled = true; button.textContent = 'Building report…'; try { const response = await fetch('/api/export-report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ report_id: data.report_id }) }); if (!response.ok) { const error = await response.json().catch(() => ({})); throw new Error(error.error || 'Report export failed.'); } const blob = await response.blob(), link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'scamshield-forensic-report.html'; link.click(); URL.revokeObjectURL(link.href); } catch (error) { $('#download-status').textContent = error.message; } finally { button.disabled = false; button.textContent = label; } }; };
+    const showTab = tab => { if (tab === 'ai') { if (_aiEmailCache) { content.innerHTML = renderAiContent(_aiEmailCache, data.threat_intel.risk.level); } else { content.innerHTML = aiLoadingState(); fetchAiExplanation(data, 'email').then(ai => { _aiEmailCache = ai; content.innerHTML = renderAiContent(ai, data.threat_intel.risk.level); }); } return; } content.innerHTML = emailTabContent(tab, data); animateGauges(content); content.querySelectorAll('[data-copy]').forEach(btn => btn.onclick = async () => { await navigator.clipboard?.writeText(btn.dataset.copy); btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = btn.dataset.copy; }, 900); }); if (tab === 'report') $('#download-report').onclick = async () => { const button = $('#download-report'); const label = button.textContent; button.disabled = true; button.textContent = 'Building report…'; try { const response = await fetch('/api/export-report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ report_id: data.report_id }) }); if (!response.ok) { const error = await response.json().catch(() => ({})); throw new Error(error.error || 'Report export failed.'); } const blob = await response.blob(), link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'scamshield-forensic-report.html'; link.click(); URL.revokeObjectURL(link.href); } catch (error) { $('#download-status').textContent = error.message; } finally { button.disabled = false; button.textContent = label; } }; };
     result.querySelectorAll('[data-email-tab]').forEach(button => button.onclick = () => { result.querySelectorAll('[data-email-tab]').forEach(b => { b.classList.toggle('active', b === button); b.setAttribute('aria-selected', String(b === button)); }); showTab(button.dataset.emailTab); });
     showTab('overview'); _aiEmailCache = null; result.classList.remove('hidden'); result.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -117,7 +182,7 @@
       const box = $('#url-ai-content');
       if (!box.classList.contains('hidden')) { box.classList.add('hidden'); $('#url-ai-toggle').innerHTML = `<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 1 4 4v1a3 3 0 0 1 3 3v1a2 2 0 0 1-2 2h-1l-1 6H9l-1-6H7a2 2 0 0 1-2-2v-1a3 3 0 0 1 3-3V6a4 4 0 0 1 4-4z"/></svg>Show AI Summary`; return; }
       box.classList.remove('hidden');
-      if (_aiUrlCache) { box.innerHTML = renderAiContent(_aiUrlCache); } else { box.innerHTML = aiLoadingState(); const ai = await fetchAiExplanation(data, 'url'); _aiUrlCache = ai; box.innerHTML = renderAiContent(ai); }
+      if (_aiUrlCache) { box.innerHTML = renderAiContent(_aiUrlCache, data.threat_level); } else { box.innerHTML = aiLoadingState(); const ai = await fetchAiExplanation(data, 'url'); _aiUrlCache = ai; box.innerHTML = renderAiContent(ai, data.threat_level); }
       $('#url-ai-toggle').innerHTML = `<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 1 4 4v1a3 3 0 0 1 3 3v1a2 2 0 0 1-2 2h-1l-1 6H9l-1-6H7a2 2 0 0 1-2-2v-1a3 3 0 0 1 3-3V6a4 4 0 0 1 4-4z"/></svg>Hide AI Summary`;
     };
     result.scrollIntoView({ behavior: 'smooth', block: 'start' });
