@@ -535,7 +535,7 @@ class EmailForensicAnalyzer:
                     continue
                 seen.add(href)
 
-                resolved_href, res_domain = resolve_url(href)
+                resolved_href, res_domain, _ = resolve_url(href)
                 display = tag.get_text(strip=True)
 
                 # Check if display text itself looks like a URL with a
@@ -562,7 +562,7 @@ class EmailForensicAnalyzer:
                 if match not in seen:
                     seen.add(match)
                     match_domain = urlparse(match).netloc.lower()
-                    res_match, res_domain = resolve_url(match)
+                    res_match, res_domain, _ = resolve_url(match)
                     urls.append({
                         "url": res_match,
                         "display_text": None,
@@ -576,7 +576,7 @@ class EmailForensicAnalyzer:
                 if match not in seen:
                     seen.add(match)
                     match_domain = urlparse(match).netloc.lower()
-                    res_match, res_domain = resolve_url(match)
+                    res_match, res_domain, _ = resolve_url(match)
                     urls.append({
                         "url": res_match,
                         "display_text": None,

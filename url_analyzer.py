@@ -2,8 +2,37 @@ import ipaddress
 import socket
 import requests
 import unicodedata
+import base64
+import time
 from urllib.parse import urlparse
 from email_forensic_analyzer import EmailForensicAnalyzer, _BRAND_DOMAINS
+
+_VT_URL_CACHE: dict[str, dict] = {}
+
+def check_url_virustotal(url: str, api_key: str) -> dict:
+    """Query VirusTotal for a full URL scan."""
+    cache_entry = _VT_URL_CACHE.get(url)
+    if cache_entry and time.time() - cache_entry["timestamp"] < 3600:
+        return cache_entry["result"]
+        
+    url_id = base64.urlsafe_b64encode(url.encode()).decode().strip("=")
+    api_url = f"https://www.virustotal.com/api/v3/urls/{url_id}"
+    
+    try:
+        resp = requests.get(api_url, headers={"x-apikey": api_key}, timeout=5.0)
+        if resp.status_code == 404:
+            res = {"url": url, "detections": 0, "is_malicious": False}
+            _VT_URL_CACHE[url] = {"timestamp": time.time(), "result": res}
+            return res
+        resp.raise_for_status()
+        data = resp.json().get("data", {}).get("attributes", {})
+        stats = data.get("last_analysis_stats", {})
+        detections = stats.get("malicious", 0) + stats.get("suspicious", 0)
+        res = {"url": url, "detections": detections, "is_malicious": detections > 0}
+        _VT_URL_CACHE[url] = {"timestamp": time.time(), "result": res}
+        return res
+    except requests.RequestException as exc:
+        return {"url": url, "error": f"VirusTotal request failed: {exc}"}
 
 _SUSPICIOUS_TLDS = frozenset({
     "xyz", "top", "zip", "click", "site", "online", "live", "date", "club",
@@ -19,18 +48,30 @@ def _registrable_domain(hostname: str) -> str:
 def _url_indicator(flag: str, severity: str, points: int) -> dict:
     return {"flag": flag, "severity": severity, "points": points}
 
-def resolve_url(url: str) -> tuple[str, str]:
-    """Follow redirects to find the final URL and domain."""
+def resolve_url(url: str) -> tuple[str, str, str]:
+    """Follow redirects to find the final URL and domain.
+    Returns (final_url, final_domain, status)
+    """
     try:
-        resp = requests.head(url, allow_redirects=True, timeout=2.0)
-        if resp.url != url:
-            return resp.url, urlparse(resp.url).netloc.lower()
+        resp = requests.head(url, allow_redirects=True, timeout=5.0)
+        final_url = resp.url
+        final_domain = urlparse(final_url).netloc.lower()
+        if final_url != url:
+            return final_url, final_domain, "redirected"
+        return final_url, final_domain, "ok"
+    except requests.Timeout:
+        return url, urlparse(url).netloc.lower(), "timeout"
     except requests.RequestException:
-        pass
-    return url, urlparse(url).netloc.lower()
+        return url, urlparse(url).netloc.lower(), "error"
 
 def is_homograph(domain: str) -> bool:
     """Check if domain uses punycode or is a common homoglyph of a known brand."""
+    try:
+        if domain.encode('idna').startswith(b'xn--'):
+            return True
+    except UnicodeError:
+        return True
+        
     if domain.startswith("xn--"):
         return True
     domain_ascii = unicodedata.normalize("NFKD", domain).encode("ascii", "ignore").decode("ascii")
@@ -46,6 +87,22 @@ def is_homograph(domain: str) -> bool:
     # Check if the domain itself mimics a brand
     if resembles_brand(domain):
         return True
+        
+    try:
+        from Levenshtein import distance
+    except ImportError:
+        try:
+            from rapidfuzz.distance.Levenshtein import distance
+        except ImportError:
+            distance = None
+            
+    if distance:
+        label = _registrable_domain(domain).split(".")[0]
+        for brand, legitimate in _BRAND_DOMAINS.items():
+            if len(brand) >= 4 and 1 <= distance(label, brand) <= 2:
+                if not any(domain == d or domain.endswith("." + d) for d in legitimate):
+                    return True
+
     return False
 
 def analyze_standalone_url(raw_url: str, vt_api_key: str | None = None, abuseipdb_api_key: str | None = None) -> dict:
@@ -53,13 +110,23 @@ def analyze_standalone_url(raw_url: str, vt_api_key: str | None = None, abuseipd
     candidate_parsed = urlparse(candidate if "://" in candidate else f"http://{candidate}")
     original_hostname = (candidate_parsed.hostname or "").lower().rstrip(".")
 
-    res_url, res_domain = resolve_url(candidate if "://" in candidate else f"http://{candidate}")
+    res_url, res_domain, status = resolve_url(candidate if "://" in candidate else f"http://{candidate}")
     parsed = urlparse(res_url)
     hostname = res_domain
     if not hostname:
         raise ValueError("Enter a valid URL with a hostname.")
     indicators: list[dict] = []
     score = 0
+    
+    if status == "redirected":
+        indicators.append(_url_indicator(f"URL redirected. Final destination: {hostname}", "medium", 15))
+        score += 15
+    elif status == "timeout":
+        indicators.append(_url_indicator("URL timed out during resolution (suspicious shortener/host)", "low", 10))
+        score += 10
+    elif status == "error":
+        indicators.append(_url_indicator("URL connection failed or was refused", "low", 10))
+        score += 10
     
     try:
         ipaddress.ip_address(hostname)
@@ -125,10 +192,10 @@ def analyze_standalone_url(raw_url: str, vt_api_key: str | None = None, abuseipd
     score = min(score, 100)
     
     if vt_api_key:
-        vt = EmailForensicAnalyzer.check_domain_virustotal(hostname, vt_api_key)
+        vt = check_url_virustotal(raw_url, vt_api_key)
         if not vt.get("error") and vt.get("is_malicious"):
-            indicators.append(_url_indicator("Domain is flagged by VirusTotal as malicious", "high", 50))
-            score += 50
+            indicators.append(_url_indicator(f"known_malicious: URL is flagged by {vt.get('detections')} VirusTotal engines", "high", 100))
+            score += 100
     
     if abuseipdb_api_key:
         try:
