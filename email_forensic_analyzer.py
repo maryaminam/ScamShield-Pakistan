@@ -63,6 +63,7 @@ _ABUSEIPDB_API = "https://api.abuseipdb.com/api/v2/check"
 
 # VirusTotal API endpoint (v3).
 _VT_API = "https://www.virustotal.com/api/v3/files/{hash}"
+_VT_DOMAIN_API = "https://www.virustotal.com/api/v3/domains/{domain}"
 
 # DNS resolver timeout (seconds). DNS is enrichment, so it should never hold
 # up the core forensic verdict for several seconds per record.
@@ -135,6 +136,9 @@ _WEIGHTS = {
     "header_anomaly": 15,   # From/Reply-To/Return-Path/DKIM-d= domain mismatches
     "young_url_domain": 14, # a link in the email body points to a very
                              # recently registered domain
+    "homograph_domain": 25, # link domain visually mimics a known brand or uses punycode
+    "vt_url_malicious": 25,  # VirusTotal flagged a link domain
+    "abuseip_url": 20,       # AbuseIPDB flagged the IP associated with a link domain
 }
 
 # Brand → set of legitimate sender domain suffixes. Used by detect_spoofing()
@@ -480,6 +484,8 @@ class EmailForensicAnalyzer:
     # Step 5: URL & link extraction
     # ------------------------------------------------------------------
 
+
+
     def extract_urls(self) -> list[dict]:
         """Extract all URLs from the email body and detect display/href mismatches.
 
@@ -529,7 +535,7 @@ class EmailForensicAnalyzer:
                     continue
                 seen.add(href)
 
-                href_domain = urlparse(href).netloc.lower()
+                resolved_href, res_domain = resolve_url(href)
                 display = tag.get_text(strip=True)
 
                 # Check if display text itself looks like a URL with a
@@ -537,14 +543,17 @@ class EmailForensicAnalyzer:
                 mismatch = False
                 if display.startswith(("http://", "https://")):
                     display_domain = urlparse(display).netloc.lower()
-                    if display_domain and display_domain != href_domain:
+                    if display_domain and display_domain != res_domain:
                         mismatch = True
 
+                href_domain = urlparse(href).netloc.lower()
+
                 urls.append({
-                    "url": href,
+                    "url": resolved_href,
                     "display_text": display or None,
-                    "domain": href_domain,
+                    "domain": res_domain,
                     "mismatch": mismatch,
+                    "is_homograph": is_homograph(href_domain) or is_homograph(res_domain),
                 })
 
             # Also grab URLs in plain text that aren't inside <a> tags.
@@ -552,22 +561,28 @@ class EmailForensicAnalyzer:
             for match in _URL_RE.findall(visible_text):
                 if match not in seen:
                     seen.add(match)
+                    match_domain = urlparse(match).netloc.lower()
+                    res_match, res_domain = resolve_url(match)
                     urls.append({
-                        "url": match,
+                        "url": res_match,
                         "display_text": None,
-                        "domain": urlparse(match).netloc.lower(),
+                        "domain": res_domain,
                         "mismatch": False,
+                        "is_homograph": is_homograph(match_domain) or is_homograph(res_domain),
                     })
 
         elif plain_body:
             for match in _URL_RE.findall(plain_body):
                 if match not in seen:
                     seen.add(match)
+                    match_domain = urlparse(match).netloc.lower()
+                    res_match, res_domain = resolve_url(match)
                     urls.append({
-                        "url": match,
+                        "url": res_match,
                         "display_text": None,
-                        "domain": urlparse(match).netloc.lower(),
+                        "domain": res_domain,
                         "mismatch": False,
+                        "is_homograph": is_homograph(match_domain) or is_homograph(res_domain),
                     })
 
         return urls
@@ -694,29 +709,50 @@ class EmailForensicAnalyzer:
             "is_young": is_young,
         }
 
+    @staticmethod
+    def check_domain_virustotal(domain: str, api_key: str | None = None) -> dict:
+        """Query VirusTotal for scan results on a domain."""
+        if api_key is None:
+            return {"domain": domain, "error": "No VirusTotal API key provided"}
+        try:
+            resp = requests.get(
+                _VT_DOMAIN_API.format(domain=domain),
+                headers={"x-apikey": api_key},
+                timeout=_API_TIMEOUT,
+            )
+            if resp.status_code == 404:
+                return {"domain": domain, "detections": 0, "is_malicious": False}
+            resp.raise_for_status()
+            data = resp.json().get("data", {}).get("attributes", {})
+        except requests.exceptions.RequestException as exc:
+            return {"domain": domain, "error": f"VirusTotal request failed: {exc}"}
+        
+        stats = data.get("last_analysis_stats", {})
+        detections = stats.get("malicious", 0) + stats.get("suspicious", 0)
+        return {
+            "domain": domain,
+            "detections": detections,
+            "is_malicious": detections > 0,
+        }
+
     # ------------------------------------------------------------------
-    # URL-domain reputation (WHOIS age check for linked domains)
+    # URL-domain reputation (WHOIS/VT/AbuseIP for linked domains)
     # ------------------------------------------------------------------
 
     def check_url_domain_reputation(
         self,
         urls: list[dict] | None = None,
         max_domains: int = 3,
+        vt_api_key: str | None = None,
+        abuse_api_key: str | None = None,
     ) -> list[dict]:
-        """WHOIS lookup on domains found in email-body URLs.
+        """WHOIS, VirusTotal, and AbuseIPDB lookup on domains found in email-body URLs.
 
-        Checks up to *max_domains* unique link domains (excluding the
-        sender's own From domain, which is already checked separately
-        by ``check_domain_reputation``).
-
-        Args:
-            urls: Pre-computed URL list from ``extract_urls()``.
-                  If ``None``, ``extract_urls()`` is called automatically.
-            max_domains: Cap on how many WHOIS lookups to perform.
+        Checks up to *max_domains* unique link domains.
 
         Returns:
             A list of dicts, each with keys: domain, registrar,
-            domain_age_days, is_young, and optionally error.
+            domain_age_days, is_young, and optionally error, vt_malicious, abuse_flagged.
         """
         if urls is None:
             urls = self.extract_urls()
@@ -744,13 +780,26 @@ class EmailForensicAnalyzer:
         results: list[dict] = []
         for domain in domains_to_check:
             rep = self.check_domain_reputation(domain)
-            results.append({
+            result_dict = {
                 "domain": rep.get("domain", domain),
                 "registrar": rep.get("registrar"),
                 "domain_age_days": rep.get("domain_age_days"),
                 "is_young": bool(rep.get("is_young")),
                 "error": rep.get("error"),
-            })
+            }
+            if vt_api_key:
+                vt = self.check_domain_virustotal(domain, vt_api_key)
+                if not vt.get("error"):
+                    result_dict["vt_malicious"] = vt.get("is_malicious", False)
+            if abuse_api_key:
+                try:
+                    ip = socket.gethostbyname(domain)
+                    abuse = self.check_ip_abuse(ip, abuse_api_key)
+                    if not abuse.get("error"):
+                        result_dict["abuse_flagged"] = abuse.get("is_flagged", False)
+                except OSError:
+                    pass
+            results.append(result_dict)
         return results
 
     # ------------------------------------------------------------------
@@ -1220,6 +1269,34 @@ class EmailForensicAnalyzer:
                     pts,
                     f"Linked domain '{young_domains[0]}' registered recently.",
                 )
+
+            vt_bad = [entry["domain"] for entry in url_domain_reps if entry.get("vt_malicious")]
+            if vt_bad:
+                pts = _WEIGHTS["vt_url_malicious"]
+                score += pts
+                breakdown["vt_url_malicious"] = (
+                    pts,
+                    f"Linked domain '{vt_bad[0]}' flagged by VirusTotal.",
+                )
+
+            abuse_bad = [entry["domain"] for entry in url_domain_reps if entry.get("abuse_flagged")]
+            if abuse_bad:
+                pts = _WEIGHTS["abuseip_url"]
+                score += pts
+                breakdown["abuseip_url"] = (
+                    pts,
+                    f"IP for linked domain '{abuse_bad[0]}' flagged by AbuseIPDB.",
+                )
+
+        # 11. Homograph domain
+        homographs = [u.get("domain") for u in (urls or []) if u.get("is_homograph")]
+        if homographs:
+            pts = _WEIGHTS["homograph_domain"]
+            score += pts
+            breakdown["homograph_domain"] = (
+                pts,
+                f"Linked domain '{homographs[0]}' uses punycode or mimics a known brand.",
+            )
 
         # Determine threat level.
         if score >= 75:

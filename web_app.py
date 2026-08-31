@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 from flask import Flask, Response, jsonify, render_template, request
 
 from email_forensic_analyzer import EmailForensicAnalyzer, _BRAND_DOMAINS
+from url_analyzer import analyze_standalone_url
 import ai_explainer
 
 
@@ -99,8 +100,11 @@ def build_recommendations(risk_level: str | None, spoofing: dict, patterns: dict
     return recommendations or ["Review the message context before taking any action."]
 
 
-def _run_email_enrichment(analyzer: EmailForensicAnalyzer) -> tuple[dict, dict, dict]:
+def _run_email_enrichment(analyzer: EmailForensicAnalyzer, urls: list[dict] | None = None) -> tuple[dict, dict, dict, list[dict]]:
     """Run slow, optional reputation lookups concurrently with a short budget."""
+    if urls is None:
+        urls = []
+        
     defaults = {
         "domain_rep": {"domain": None, "error": "Domain reputation lookup unavailable"},
         "dns": {
@@ -110,11 +114,13 @@ def _run_email_enrichment(analyzer: EmailForensicAnalyzer) -> tuple[dict, dict, 
             "dmarc": {"record": None, "exists": False},
         },
         "abuse": {"ip": analyzer.originating_ip or "", "error": "AbuseIPDB enrichment timed out"},
+        "url_domain_reps": [],
     }
     tasks = {
         "domain_rep": analyzer.check_domain_reputation,
         "dns": analyzer.validate_dns_records,
         "abuse": lambda: analyzer.check_ip_abuse(analyzer.originating_ip or "", api_key=ABUSEIPDB_API_KEY),
+        "url_domain_reps": lambda: analyzer.check_url_domain_reputation(urls=urls, vt_api_key=VT_API_KEY, abuse_api_key=ABUSEIPDB_API_KEY),
     }
     executor = ThreadPoolExecutor(max_workers=len(tasks), thread_name_prefix="scamshield-enrichment")
     futures = {executor.submit(task): name for name, task in tasks.items()}
@@ -129,7 +135,7 @@ def _run_email_enrichment(analyzer: EmailForensicAnalyzer) -> tuple[dict, dict, 
     finally:
         # Any late lookup is optional; do not make the HTTP response wait for it.
         executor.shutdown(wait=False, cancel_futures=True)
-    return defaults["domain_rep"], defaults["dns"], defaults["abuse"]
+    return defaults["domain_rep"], defaults["dns"], defaults["abuse"], defaults["url_domain_reps"]
 
 
 def _store_report_source(raw_text: str, analysis: dict) -> str:
@@ -170,8 +176,7 @@ def _analyze_email(raw_text: str) -> dict:
         "x_headers": analyzer.extract_x_headers(),
     }
     patterns = analyzer.detect_phishing_patterns()
-    domain_rep, dns, abuse = _run_email_enrichment(analyzer)
-    url_domain_reps = analyzer.check_url_domain_reputation(urls=urls)
+    domain_rep, dns, abuse, url_domain_reps = _run_email_enrichment(analyzer, urls)
     risk = analyzer.calculate_risk_score(
         auth=auth, urls=urls, attachments=attachments, domain_rep=domain_rep,
         abuse=abuse, patterns=patterns, spoofing=spoofing,
@@ -207,68 +212,6 @@ def _get_email_source() -> tuple[str | None, str | None]:
     return None, None
 
 
-def _registrable_domain(hostname: str) -> str:
-    """A conservative two-label registrable-domain approximation for heuristics."""
-    labels = hostname.lower().strip(".").split(".")
-    return ".".join(labels[-2:]) if len(labels) >= 2 else hostname
-
-
-def _url_indicator(flag: str, severity: str, points: int) -> dict:
-    return {"flag": flag, "severity": severity, "points": points}
-
-
-def _analyze_url(raw_url: str) -> dict:
-    candidate = raw_url.strip()
-    parsed = urlparse(candidate if "://" in candidate else f"http://{candidate}")
-    hostname = (parsed.hostname or "").lower().rstrip(".")
-    if not hostname:
-        raise ValueError("Enter a valid URL with a hostname.")
-    indicators: list[dict] = []
-    score = 0
-    try:
-        ipaddress.ip_address(hostname)
-        indicators.append(_url_indicator("URL uses a raw IP address instead of a domain", "high", 30))
-        score += 30
-        is_ip = True
-    except ValueError:
-        is_ip = False
-    if parsed.scheme.lower() != "https":
-        indicators.append(_url_indicator("URL does not use HTTPS", "medium", 15))
-        score += 15
-    labels = hostname.split(".")
-    if not is_ip and labels and labels[-1] in _SUSPICIOUS_TLDS:
-        indicators.append(_url_indicator(f"Uncommon or abuse-prone .{labels[-1]} TLD", "medium", 15))
-        score += 15
-    if not is_ip and len(labels) - 2 > 3:
-        indicators.append(_url_indicator("Excessive subdomain depth", "medium", 10))
-        score += 10
-    registrable = _registrable_domain(hostname)
-    for brand, legitimate_domains in _BRAND_DOMAINS.items():
-        if brand in hostname and not any(registrable == domain or registrable.endswith(f".{domain}") for domain in legitimate_domains):
-            indicators.append(_url_indicator(f"Brand keyword '{brand}' appears on a non-official domain", "high", 25))
-            score += 25
-            break
-    synthetic = f"From: test@{hostname}\n\nURL reputation scan"
-    analyzer = EmailForensicAnalyzer(raw_text=synthetic)
-    domain_rep_raw, dns, _ = _run_email_enrichment(analyzer)
-    domain_info = {"registrar": domain_rep_raw.get("registrar"), "creation_date": domain_rep_raw.get("creation_date"),
-                   "domain_age_days": domain_rep_raw.get("domain_age_days"), "is_young": bool(domain_rep_raw.get("is_young"))}
-    if domain_info["is_young"]:
-        indicators.append(_url_indicator("Domain was registered recently", "high", 25))
-        score += 25
-    if not dns.get("spf", {}).get("exists"):
-        indicators.append(_url_indicator("No published SPF record", "low", 10))
-        score += 10
-    if not dns.get("dmarc", {}).get("exists"):
-        indicators.append(_url_indicator("No published DMARC record", "medium", 10))
-        score += 10
-    score = min(score, 100)
-    level = "Critical" if score >= 75 else "High" if score >= 50 else "Medium" if score >= 25 else "Low"
-    recommendation = ("Avoid visiting this URL and report it to security staff." if level in {"Critical", "High"}
-                      else "Verify the destination independently before entering data." if level == "Medium"
-                      else "No high-risk URL indicators were found; use normal caution.")
-    return {"url": raw_url, "domain": hostname, "risk_score": score, "threat_level": level,
-            "domain_info": domain_info, "dns": dns, "indicators": indicators, "recommendation": recommendation}
 
 
 @app.get("/")
@@ -299,9 +242,9 @@ def analyze_url_api():
     if not raw_url:
         return jsonify({"error": "Enter a URL to scan."}), 400
     try:
-        result = _analyze_url(raw_url)
-        _append_activity("url", result["domain"], result["risk_score"], result["threat_level"])
-        return jsonify(result)
+        response = analyze_standalone_url(raw_url, vt_api_key=VT_API_KEY, abuseipdb_api_key=ABUSEIPDB_API_KEY)
+        _append_activity("url_scan", response["domain"], response["risk_score"], response["threat_level"])
+        return jsonify(response)
     except Exception as exc:
         return jsonify({"error": f"URL analysis failed: {exc}"}), 500
 

@@ -20,15 +20,15 @@ _cache: dict[str, dict] = {}
 
 # ── Prompt constants ────────────────────────────────────────────────
 _SYSTEM_PROMPT = (
-    "You are explaining pre-computed email security findings to a "
+    "You are explaining pre-computed security findings (either from an email or a standalone URL scan) to a "
     "non-technical user. Do not change the risk score or verdict — only "
     "explain it.\n\n"
     "Be concise and avoid jargon, but do NOT be vague or generic. Always "
     "name the specific sender address, domain names, display names, and "
     "flagged phrases from the input data — never write generic filler like "
-    "'this email shows some concerning signs' or 'there are authentication "
+    "'this shows some concerning signs' or 'there are authentication "
     "issues.' Write the way a helpful colleague would explain it, pointing "
-    "at exact details: who it claims to be from, what doesn't match, what "
+    "at exact details: who it claims to be from, what destination a link leads to, what "
     "specific link or word triggered concern.\n\n"
     "Output ONLY valid JSON matching the exact schema given, no markdown "
     "fences, no preamble, no extra commentary."
@@ -37,7 +37,7 @@ _SYSTEM_PROMPT = (
 _OUTPUT_SCHEMA_INSTRUCTION = """
 Return ONLY a JSON object with exactly these keys:
 {
-  "plain_summary": "2-3 sentence summary of what this email/URL is and why it received this risk level, written for someone with no security background",
+  "plain_summary": "2-3 sentence summary of what this analyzed item (email or URL) is and why it received this risk level, written for someone with no security background",
   "key_concerns": ["short bullet", ...],
   "what_this_means": "1 paragraph explaining the practical implication",
   "recommended_actions": ["action 1", "action 2", ...]
@@ -50,7 +50,7 @@ Rules:
   phrase from the input — not a category label
 
 Example of the specificity expected:
-BAD:  "This email has some authentication issues and a suspicious sender."
+BAD:  "This item has some authentication issues and a suspicious sender."
 GOOD: "This email claims to be from 'Intimação eletrônica' but was actually
        sent through cartorio02@uorak.com, and Microsoft's own systems
        flagged that the domain shown to you doesn't match the domain that
@@ -153,7 +153,7 @@ def normalize_for_explanation(result: dict, source: str = "email") -> dict:
                     },
                 },
                 "patterns": {},
-                "dns": result.get("dns", {}),
+                "dns": {},
                 "abuse": {},
             },
             "auth": {},
