@@ -4,13 +4,54 @@
   const $ = (selector, root = document) => root.querySelector(selector);
   const esc = (value) => String(value ?? '—').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
   const levelClass = (level = 'Low') => ({ Critical: 'bg-red-500/15 text-red-300 ring-red-500/30', High: 'bg-orange-500/15 text-orange-300 ring-orange-500/30', Medium: 'bg-yellow-400/15 text-yellow-200 ring-yellow-400/30', Low: 'bg-green-500/15 text-green-300 ring-green-500/30', Safe: 'bg-green-500/15 text-green-300 ring-green-500/30' })[level] || 'bg-slate-700 text-slate-200 ring-slate-600';
-  const scoreColor = score => score >= 75 ? '#ef4444' : score >= 50 ? '#f97316' : score >= 25 ? '#facc15' : '#22c55e';
+  const scoreColor = score => score >= 75 ? 'var(--sev-critical, #ef4444)' : score >= 50 ? 'var(--sev-high, #f97316)' : score >= 25 ? 'var(--sev-medium, #facc15)' : 'var(--sev-low, #22c55e)';
   const clampScore = score => Math.min(Math.max(Number(score) || 0, 0), 100);
   const badge = level => `<span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${levelClass(level)}">${esc(level)}</span>`;
   const card = (title, value, accent) => `<div class="rounded-2xl border border-slate-800 bg-panel p-5 shadow-xl shadow-black/10"><p class="text-sm text-slate-400">${esc(title)}</p><p class="mt-2 text-3xl font-semibold ${accent}">${esc(value)}</p></div>`;
   const empty = text => `<p class="rounded-lg border border-dashed border-slate-700 p-5 text-sm text-slate-400">${esc(text)}</p>`;
   const value = item => item === null || item === undefined || item === '' ? '—' : item;
   const status = state => { const normalized = String(state || 'not present').toLowerCase(); return normalized === 'pass' ? 'text-green-300' : /fail|softfail|suspicious/.test(normalized) ? 'text-red-300' : 'text-yellow-200'; };
+
+  /* ── Concern categorisation (client-side, no backend change) ── */
+  function categorizeConcern(text) {
+    const t = (text || '').toLowerCase();
+    if (/spoof|impersonat|display.*name|from.*mismatch|sender.*ident/.test(t)) return { severity: 'critical', label: 'Spoofing' };
+    if (/dkim|spf|dmarc|auth/.test(t)) return { severity: 'high', label: 'Authentication' };
+    if (/url|link|href|mismatch.*url|click|phishing.*link|malicious.*link/.test(t)) return { severity: 'critical', label: 'Malicious links' };
+    if (/urgent|urgency|threat|demand|immediate|suspend|account.*lock/.test(t)) return { severity: 'medium', label: 'Urgent language' };
+    if (/credential|password|login|verify.*account|personal.*info|ssn/.test(t)) return { severity: 'medium', label: 'Credential request' };
+    if (/brand|paypal|amazon|microsoft|google|apple|bank/.test(t)) return { severity: 'high', label: 'Brand impersonation' };
+    if (/attach|exe|zip|macro|script/.test(t)) return { severity: 'high', label: 'Suspicious file' };
+    if (/domain|young|recent.*regist|whois/.test(t)) return { severity: 'medium', label: 'Domain reputation' };
+    if (/reply.*to|return.*path|header/.test(t)) return { severity: 'high', label: 'Header anomaly' };
+    if (/ip|abuse|blocklist/.test(t)) return { severity: 'medium', label: 'IP reputation' };
+    return { severity: 'medium', label: 'Finding' };
+  }
+
+  /* ── Tab icon SVGs (15×15 stroke icons) ───────────────────── */
+  const TAB_ICONS = {
+    overview: '<svg class="tab-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>',
+    ai: '<svg class="tab-icon" viewBox="0 0 24 24"><path d="M9.8 15.9 9 18.75l-.81-2.85a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.85-.81a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.81 2.85a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.85.81a4.5 4.5 0 0 0-3.09 3.09Z"/><path d="M18.26 8.72 18 9.75l-.26-1.03a3.38 3.38 0 0 0-2.45-2.46L14.25 6l1.04-.26a3.38 3.38 0 0 0 2.45-2.46L18 2.25l.26 1.03a3.38 3.38 0 0 0 2.45 2.46L21.75 6l-1.04.26a3.38 3.38 0 0 0-2.45 2.46Z"/></svg>',
+    auth: '<svg class="tab-icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+    spoofing: '<svg class="tab-icon" viewBox="0 0 24 24"><path d="M20 12c0 1.66-2.24 3.39-5 4.15V18a3 3 0 0 1-6 0v-1.85c-2.76-.76-5-2.49-5-4.15"/><circle cx="9" cy="10" r=".75"/><circle cx="15" cy="10" r=".75"/><path d="M12 2a8 8 0 0 0-8 8c0 1.5.5 3 1.5 4.2"/></svg>',
+    headers: '<svg class="tab-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+    urls: '<svg class="tab-icon" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.1-.1l-2 2a5 5 0 0 0 7.1 7.1l1.1-1.1"/></svg>',
+    attachments: '<svg class="tab-icon" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>',
+    domain: '<svg class="tab-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+    patterns: '<svg class="tab-icon" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    iocs: '<svg class="tab-icon" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
+    report: '<svg class="tab-icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
+  };
+
+  /* ── Verdict text helper ─────────────────────────────────── */
+  function verdictText(level) {
+    return ({ Critical: 'This is almost certainly a phishing attempt', High: 'This email shows strong phishing indicators', Medium: 'This email has some suspicious characteristics', Low: 'This email appears legitimate' })[level] || 'Analysis complete';
+  }
+
+  /* ── Severity CSS class helper ───────────────────────────── */
+  function severityClass(level) {
+    return ({ Critical: 'critical', High: 'high', Medium: 'medium', Low: 'low' })[level] || 'low';
+  }
 
   /* ── AI Explanation cache & helpers ──────────────────────── */
   let _aiEmailCache = null;   // cached per last email analysis
@@ -31,16 +72,17 @@
       '<svg class="ai-concern-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.168 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 6zm0 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" clip-rule="evenodd"/></svg>',
       '<svg class="ai-concern-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0zm-7-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM9 9a.75.75 0 0 0 0 1.5h.25a.25.25 0 0 1 .25.25v1.5a.25.25 0 0 1-.25.25H9a.75.75 0 0 0 0 1.5h2a.75.75 0 0 0 0-1.5h-.25a.25.25 0 0 1-.25-.25v-2.5A.75.75 0 0 0 9.75 9H9z" clip-rule="evenodd"/></svg>',
     ];
-    const concerns = (ai.key_concerns || []).map((c, i) => {
-      const icon = concernIcons[i % concernIcons.length];
-      return `<div class="ai-concern-card" style="animation-delay:${0.12 + i * 0.07}s">
-        <div class="ai-concern-dot"></div>
-        <div class="ai-concern-body">
-          ${icon}
-          <span>${esc(c)}</span>
-        </div>
-      </div>`;
+
+    /* ── Render concern chips (scan-first format) ────────────── */
+    const concernChips = (ai.key_concerns || []).map((c, i) => {
+      const cat = categorizeConcern(c);
+      return `<span class="concern-chip concern-chip--${cat.severity}" style="animation-delay:${.08 + i * .06}s" onclick="this.classList.toggle('expanded')">
+        <span class="concern-chip-dot"></span>
+        <span class="concern-chip-label">${esc(cat.label)}</span>
+        <span class="concern-chip-detail">${esc(c)}</span>
+      </span>`;
     }).join('');
+
     const actions = (ai.recommended_actions || []).map((a, i) => {
       return `<div class="ai-action-step" style="animation-delay:${0.2 + i * 0.08}s">
         <div class="ai-action-number">${i + 1}</div>
@@ -68,9 +110,7 @@
           <h3>${isSafe ? 'Analysis highlights' : 'Key concerns'}</h3>
           ${ai.key_concerns?.length ? `<span class="ai-concern-count ${isSafe ? 'ai-concern-count--safe' : ''}">${ai.key_concerns.length}</span>` : ''}
         </div>
-        <div class="${isSafe ? 'ai-concerns-list--safe' : ''}">
-          ${concerns || '<p class="ai-empty-note">No specific findings identified.</p>'}
-        </div>
+        ${concernChips ? `<div class="concern-chips">${concernChips}</div>` : '<p class="ai-empty-note">No specific findings identified.</p>'}
       </div>
 
       <div class="ai-meaning-panel" style="animation-delay:.16s">
@@ -114,11 +154,27 @@
 
   function gauge(score, level) {
     const clamped = clampScore(score);
-    const radius = 54, circumference = 2 * Math.PI * radius, offset = circumference * (1 - clamped / 100);
-    return `<div class="relative h-40 w-40"><svg viewBox="0 0 128 128" class="h-full w-full -rotate-90"><circle cx="64" cy="64" r="${radius}" fill="none" stroke="#334155" stroke-width="10"/><circle class="gauge-progress" data-gauge="${offset}" cx="64" cy="64" r="${radius}" fill="none" stroke="${scoreColor(clamped)}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${circumference}" stroke-dashoffset="${circumference}"/></svg><div class="absolute inset-0 grid place-items-center text-center"><div><strong class="block text-3xl">${esc(clamped)}</strong><span class="text-xs text-slate-400">/ 100</span></div></div></div>`;
+    const radius = 62, circumference = 2 * Math.PI * radius, offset = circumference * (1 - clamped / 100);
+    const sev = severityClass(level);
+    return `<div class="hero-gauge-wrap">
+      <div class="hero-gauge-glow hero-gauge-glow--${sev}" data-glow></div>
+      <svg viewBox="0 0 148 148" class="hero-gauge-svg" style="width:192px;height:192px" class="-rotate-90">
+        <defs><linearGradient id="gg" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="${scoreColor(clamped)}" stop-opacity=".45"/><stop offset="100%" stop-color="${scoreColor(clamped)}"/></linearGradient></defs>
+        <circle cx="74" cy="74" r="${radius}" fill="none" stroke-width="9" transform="rotate(-90 74 74)"/>
+        <circle class="gauge-progress" data-gauge="${offset}" cx="74" cy="74" r="${radius}" fill="none" stroke="url(#gg)" stroke-width="9" stroke-linecap="round" stroke-dasharray="${circumference}" stroke-dashoffset="${circumference}" transform="rotate(-90 74 74)"/>
+      </svg>
+      <div style="position:absolute;inset:0;display:grid;place-items:center;text-align:center">
+        <div><strong class="hero-score-num" style="color:${scoreColor(clamped)}">${esc(clamped)}</strong><span class="hero-score-max">/ 100</span></div>
+      </div>
+    </div>`;
   }
 
-  function animateGauges(root) { requestAnimationFrame(() => root.querySelectorAll('[data-gauge]').forEach(el => { el.style.strokeDashoffset = el.dataset.gauge; })); }
+  function animateGauges(root) {
+    requestAnimationFrame(() => {
+      root.querySelectorAll('[data-gauge]').forEach(el => { el.style.strokeDashoffset = el.dataset.gauge; });
+      root.querySelectorAll('[data-glow]').forEach(el => { el.classList.add('active'); });
+    });
+  }
 
   async function jsonFetch(url, options = {}) {
     const response = await fetch(url, options);
@@ -150,7 +206,45 @@
     const risk = data.threat_intel.risk, dns = data.threat_intel.dns || {}, patterns = data.threat_intel.patterns || {};
     if (tab === 'overview') {
       const actions = _aiEmailCache?.recommended_actions || data.recommendations || ["View 'AI Summary' tab for detailed recommendations."];
-      return `<div class="grid gap-5 lg:grid-cols-[auto_1fr]"><div class="flex flex-col items-center justify-center rounded-xl bg-slate-900/60 p-5">${gauge(risk.score, risk.level)}${badge(risk.level)}</div>${section('Recommended response', `<ul class="space-y-3 text-sm text-slate-300">${actions.map(item => `<li class="flex gap-2"><span class="text-sky-400">›</span>${esc(item)}</li>`).join('')}</ul>`)}</div>`;
+      const sev = severityClass(risk.level);
+      const spoofCount = (data.spoofing.findings || []).length;
+      const urlMismatchCount = (data.urls || []).filter(u => u.mismatch).length;
+      const riskyAttach = (data.attachments || []).filter(a => a.risky).length;
+      return `<div class="grid gap-5 lg:grid-cols-[320px_1fr]">
+        <div class="flex flex-col items-center justify-center gap-4 rounded-2xl p-6" style="background:var(--surface-soft);border:1px solid var(--line)">
+          ${gauge(risk.score, risk.level)}
+          <div class="text-center">${badge(risk.level)}</div>
+        </div>
+        <div class="space-y-5">
+          <div class="rounded-2xl p-5" style="background:var(--surface-solid);border:1px solid var(--line);box-shadow:var(--shadow)">
+            <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem">
+              <svg class="result-section-icon" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <h3 style="font-size:1rem;font-weight:700;letter-spacing:-.02em;margin:0">Recommended response</h3>
+            </div>
+            <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:.65rem">
+              ${actions.map(item => `<li style="display:flex;align-items:flex-start;gap:.6rem;font-size:.9rem;color:var(--text);line-height:1.5"><span style="color:var(--accent);font-weight:700;flex-shrink:0;margin-top:1px">›</span>${esc(item)}</li>`).join('')}
+            </ul>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.75rem">
+            <div class="quick-stat-card">
+              <span class="quick-stat-label"><svg class="quick-stat-icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>Sender</span>
+              <span class="quick-stat-value" style="font-family:var(--font-mono,monospace);font-size:.82rem;word-break:break-all">${esc(data.spoofing.from_address || '—')}</span>
+            </div>
+            <div class="quick-stat-card">
+              <span class="quick-stat-label"><svg class="quick-stat-icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Auth status</span>
+              <span class="quick-stat-value"><span style="color:${data.auth.spf === 'pass' ? 'var(--sev-low)' : 'var(--sev-critical)'}">SPF ${esc(data.auth.spf || '—')}</span> · <span style="color:${data.auth.dkim === 'pass' ? 'var(--sev-low)' : 'var(--sev-critical)'}">DKIM ${esc(data.auth.dkim || '—')}</span></span>
+            </div>
+            <div class="quick-stat-card">
+              <span class="quick-stat-label"><svg class="quick-stat-icon" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Findings</span>
+              <span class="quick-stat-value">${esc(spoofCount)} spoofing · ${esc(urlMismatchCount)} URL mismatch${riskyAttach ? ` · ${esc(riskyAttach)} risky file` : ''}</span>
+            </div>
+            <div class="quick-stat-card">
+              <span class="quick-stat-label"><svg class="quick-stat-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Domain</span>
+              <span class="quick-stat-value" style="font-size:.85rem">${esc(data.domain_rep.domain || '—')} ${data.domain_rep.is_young ? '<span style="color:var(--sev-high);font-size:.75rem;font-weight:600"> (young)</span>' : ''}</span>
+            </div>
+          </div>
+        </div>
+      </div>`;
     }
     if (tab === 'auth') return `<div class="grid gap-5 xl:grid-cols-2">${section('Observed authentication', `<div class="grid gap-3 sm:grid-cols-3">${['spf', 'dkim', 'dmarc'].map(key => `<div class="rounded-xl bg-slate-900 p-4"><p class="text-xs uppercase text-slate-400">${key}</p><p class="mt-2 font-semibold ${status(data.auth[key])}">${esc(value(data.auth[key]))}</p></div>`).join('')}</div><p class="mt-4 text-sm ${data.auth.is_suspicious ? 'text-red-300' : 'text-green-300'}">${data.auth.is_suspicious ? 'Authentication signals are suspicious.' : 'No suspicious authentication result reported.'}</p>`)}${section('Published DNS records', `<div class="space-y-3">${['spf', 'dkim', 'dmarc'].map(key => `<div class="rounded-lg bg-slate-900 p-3"><div class="flex justify-between"><b class="uppercase">${key}</b>${dns[key]?.exists ? badge('Low') : badge('Medium')}</div><p class="mt-2 break-all font-mono text-xs text-slate-400">${esc(dns[key]?.record || 'No record found')}</p></div>`).join('')}</div>`)}</div>`;
     if (tab === 'spoofing') return `<div class="grid gap-5 xl:grid-cols-2">${section('Sender identity', `<dl class="space-y-3 text-sm"><div><dt class="text-slate-400">Display name</dt><dd>${esc(data.spoofing.from_display)}</dd></div><div><dt class="text-slate-400">Actual sender</dt><dd class="font-mono">${esc(data.spoofing.from_address)}</dd></div><div><dt class="text-slate-400">Reply-To</dt><dd class="font-mono">${esc(data.spoofing.reply_to)}</dd></div><div><dt class="text-slate-400">Return-Path</dt><dd class="font-mono">${esc(data.spoofing.return_path)}</dd></div></dl>`)}${section('Spoofing findings', `<div class="space-y-3">${data.spoofing.findings?.length ? data.spoofing.findings.map(f => `<div class="rounded-lg bg-slate-900 p-3"><div class="flex items-center justify-between gap-3"><b>${esc(f.type)}</b>${badge(String(f.severity || 'low').replace(/^./, c => c.toUpperCase()))}</div><p class="mt-2 text-sm text-slate-300">${esc(f.message)}</p></div>`).join('') : empty('No sender identity anomalies found.')}</div>`)}</div>`;
@@ -166,11 +260,33 @@
 
   function renderEmail(data) {
     const result = $('#email-results');
+    const risk = data.threat_intel.risk;
+    const sev = severityClass(risk.level);
     const tabs = [['overview', 'Overview'], ['ai', 'AI Summary'], ['auth', 'Authentication'], ['spoofing', 'Spoofing & Identity'], ['headers', 'Headers & Timing'], ['urls', 'URLs & Links'], ['attachments', 'Attachments'], ['domain', 'Domain Reputation'], ['patterns', 'Threat Patterns'], ['iocs', 'IOCs'], ['report', 'Report']];
-    result.innerHTML = `<div class="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-800 bg-panel p-5"><div><p class="text-sm text-slate-400">Threat assessment</p><div class="mt-2 flex items-center gap-3">${badge(data.threat_intel.risk.level)}<span class="text-2xl font-semibold">${esc(clampScore(data.threat_intel.risk.score))} / 100</span></div></div><p class="max-w-[15rem] sm:max-w-xs md:max-w-sm lg:max-w-xl truncate text-sm text-slate-400" title="${esc(data.metadata.Subject || 'No subject supplied')}">Subject: ${esc(data.metadata.Subject || 'No subject supplied')}</p></div><div class="mb-2 text-right xl:hidden"><span class="text-xs font-semibold uppercase tracking-wide text-slate-500">Scroll for more tabs &rarr;</span></div><div class="email-tabs mb-5 overflow-x-auto" role="tablist" aria-label="Email analysis sections">${tabs.map(([id, label], index) => `<button data-email-tab="${id}" role="tab" aria-selected="${index === 0}" class="tab-button whitespace-nowrap px-4 py-3 text-sm ${index === 0 ? 'active' : ''}">${label}</button>`).join('')}</div><div id="email-tab-content"></div>`;
+
+    /* ── Hero Section ──────────────────────────────────────── */
+    const heroHtml = `<div class="results-hero mb-6">
+      <div class="hero-severity-wash hero-severity-wash--${sev}"></div>
+      <div style="position:relative;z-index:1;display:flex;align-items:center;gap:3rem;flex-wrap:wrap">
+        ${gauge(risk.score, risk.level)}
+        <div style="flex:1;min-width:280px">
+          <p style="font-size:.75rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--sev-${sev});margin:0 0 .75rem">${esc(risk.level)} Risk</p>
+          <p class="hero-verdict">${esc(verdictText(risk.level))}</p>
+          <p class="hero-subject">Subject: ${esc(data.metadata.Subject || 'No subject supplied')}</p>
+        </div>
+      </div>
+    </div>`;
+
+    /* ── Tab bar with icons ────────────────────────────────── */
+    const tabButtons = tabs.map(([id, label], index) => {
+      const icon = TAB_ICONS[id] || '';
+      return `<button data-email-tab="${id}" role="tab" aria-selected="${index === 0}" class="tab-button whitespace-nowrap px-4 py-3 text-sm ${index === 0 ? 'active' : ''}" style="display:inline-flex;align-items:center;gap:.4rem">${icon}${esc(label)}</button>`;
+    }).join('');
+
+    result.innerHTML = `${heroHtml}<div class="mb-2 xl:hidden"><span style="font-size:.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)">Scroll for more tabs &rarr;</span></div><div class="email-tabs mb-5 overflow-x-auto" role="tablist" aria-label="Email analysis sections">${tabButtons}</div><div id="email-tab-content"></div>`;
     const content = $('#email-tab-content');
     let currentTab = null;
-    const showTab = tab => { currentTab = tab; if (tab === 'ai') { if (_aiEmailCache) { content.innerHTML = renderAiContent(_aiEmailCache, data.threat_intel.risk.level); } else { content.innerHTML = aiLoadingState(); fetchAiExplanation(data, 'email').then(ai => { _aiEmailCache = ai; if (currentTab === 'ai') { content.innerHTML = renderAiContent(ai, data.threat_intel.risk.level); } }); } return; } content.innerHTML = emailTabContent(tab, data); animateGauges(content); content.querySelectorAll('[data-copy]').forEach(btn => btn.onclick = async () => { await navigator.clipboard?.writeText(btn.dataset.copy); btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = btn.dataset.copy; }, 900); }); if (tab === 'report') $('#download-report').onclick = async () => { const button = $('#download-report'); const label = button.textContent; button.disabled = true; button.textContent = 'Building report…'; try { const response = await fetch('/api/export-report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ report_id: data.report_id }) }); if (!response.ok) { const error = await response.json().catch(() => ({})); throw new Error(error.error || 'Report export failed.'); } const blob = await response.blob(), link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'scamshield-forensic-report.html'; link.click(); URL.revokeObjectURL(link.href); } catch (error) { $('#download-status').textContent = error.message; } finally { button.disabled = false; button.textContent = label; } }; };
+    const showTab = tab => { currentTab = tab; content.classList.remove('tab-fade-in'); void content.offsetWidth; content.classList.add('tab-fade-in'); if (tab === 'ai') { if (_aiEmailCache) { content.innerHTML = renderAiContent(_aiEmailCache, data.threat_intel.risk.level); } else { content.innerHTML = aiLoadingState(); fetchAiExplanation(data, 'email').then(ai => { _aiEmailCache = ai; if (currentTab === 'ai') { content.innerHTML = renderAiContent(ai, data.threat_intel.risk.level); } }); } return; } content.innerHTML = emailTabContent(tab, data); animateGauges(content); content.querySelectorAll('[data-copy]').forEach(btn => btn.onclick = async () => { await navigator.clipboard?.writeText(btn.dataset.copy); btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = btn.dataset.copy; }, 900); }); if (tab === 'report') $('#download-report').onclick = async () => { const button = $('#download-report'); const label = button.textContent; button.disabled = true; button.textContent = 'Building report…'; try { const response = await fetch('/api/export-report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ report_id: data.report_id }) }); if (!response.ok) { const error = await response.json().catch(() => ({})); throw new Error(error.error || 'Report export failed.'); } const blob = await response.blob(), link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'scamshield-forensic-report.html'; link.click(); URL.revokeObjectURL(link.href); } catch (error) { $('#download-status').textContent = error.message; } finally { button.disabled = false; button.textContent = label; } }; };
     result.querySelectorAll('[data-email-tab]').forEach(button => button.onclick = () => { result.querySelectorAll('[data-email-tab]').forEach(b => { b.classList.toggle('active', b === button); b.setAttribute('aria-selected', String(b === button)); }); showTab(button.dataset.emailTab); });
     showTab('overview'); _aiEmailCache = null; result.classList.remove('hidden'); result.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
