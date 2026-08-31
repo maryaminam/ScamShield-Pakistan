@@ -6,8 +6,21 @@ import base64
 import time
 from urllib.parse import urlparse
 from email_forensic_analyzer import EmailForensicAnalyzer, _BRAND_DOMAINS
+import os
 
 _VT_URL_CACHE: dict[str, dict] = {}
+_TOP_DOMAINS_MAP: dict[str, set[str]] = {}
+
+_TOP_DOMAIN_FILE = os.path.join(os.path.dirname(__file__), "tranco_top_10k.txt")
+if os.path.exists(_TOP_DOMAIN_FILE):
+    with open(_TOP_DOMAIN_FILE, "r") as _f:
+        for _i, _line in enumerate(_f):
+            if _i >= 5000:
+                break
+            _d = _line.strip().lower()
+            _l = _d.split(".")[0]
+            if len(_l) >= 4:
+                _TOP_DOMAINS_MAP.setdefault(_l, set()).add(_d)
 
 def check_url_virustotal(url: str, api_key: str) -> dict:
     """Query VirusTotal for a full URL scan."""
@@ -102,8 +115,59 @@ def is_homograph(domain: str) -> bool:
             if len(brand) >= 4 and 1 <= distance(label, brand) <= 2:
                 if not any(domain == d or domain.endswith("." + d) for d in legitimate):
                     return True
+        
+        for top_label, top_domains in _TOP_DOMAINS_MAP.items():
+            if abs(len(label) - len(top_label)) <= 2:
+                if 1 <= distance(label, top_label) <= 2:
+                    if not any(domain == d or domain.endswith("." + d) for d in top_domains):
+                        return True
 
     return False
+
+def analyze_page_content(url: str, final_domain: str) -> list[dict]:
+    """Inspects live HTML for phishing indicators."""
+    indicators = []
+    try:
+        from bs4 import BeautifulSoup
+        resp = requests.get(
+            url, 
+            timeout=4.0, 
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+        )
+        if resp.status_code != 200:
+            return []
+            
+        soup = BeautifulSoup(resp.text, "html.parser")
+        
+        if soup.find("input", {"type": "password"}):
+            indicators.append(_url_indicator("Page contains a password input field (potential credential harvesting)", "high", 30))
+            
+        cross_domain_actions = 0
+        final_reg = _registrable_domain(final_domain)
+        for form in soup.find_all("form", action=True):
+            action = form["action"].strip()
+            if action.startswith("http://") or action.startswith("https://"):
+                action_domain = urlparse(action).netloc.lower()
+                action_reg = _registrable_domain(action_domain)
+                if action_reg and action_reg != final_reg:
+                    cross_domain_actions += 1
+        
+        if cross_domain_actions > 0:
+            indicators.append(_url_indicator(f"Page contains form(s) submitting data to a different external domain", "high", 40))
+
+        title_tag = soup.find("title")
+        if title_tag and title_tag.string:
+            title_text = title_tag.string.lower()
+            norm_title = title_text.replace("1", "l").replace("0", "o")
+            for brand, legitimate in _BRAND_DOMAINS.items():
+                if brand in norm_title:
+                    if not any(final_domain == d or final_domain.endswith("." + d) for d in legitimate):
+                        indicators.append(_url_indicator(f"Page title claims to be '{brand}' but domain is unofficial", "high", 50))
+                        break
+                        
+        return indicators
+    except Exception:
+        return []
 
 def analyze_standalone_url(raw_url: str, vt_api_key: str | None = None, abuseipdb_api_key: str | None = None) -> dict:
     candidate = raw_url.strip()
@@ -206,6 +270,11 @@ def analyze_standalone_url(raw_url: str, vt_api_key: str | None = None, abuseipd
                 score += 30
         except OSError:
             pass
+
+    page_indicators = analyze_page_content(res_url, hostname)
+    for ind in page_indicators:
+        indicators.append(ind)
+        score += ind["points"]
 
     score = min(score, 100)
     level = "Critical" if score >= 75 else "High" if score >= 50 else "Medium" if score >= 25 else "Low"
