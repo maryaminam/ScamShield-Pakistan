@@ -4,6 +4,8 @@ import requests
 import unicodedata
 import base64
 import time
+import math
+from collections import Counter
 from urllib.parse import urlparse
 from email_forensic_analyzer import EmailForensicAnalyzer, _BRAND_DOMAINS
 import os
@@ -46,6 +48,12 @@ def check_url_virustotal(url: str, api_key: str) -> dict:
         return res
     except requests.RequestException as exc:
         return {"url": url, "error": f"VirusTotal request failed: {exc}"}
+
+def shannon_entropy(s: str) -> float:
+    if not s:
+        return 0.0
+    p, lns = Counter(s), float(len(s))
+    return -sum(count/lns * math.log2(count/lns) for count in p.values())
 
 _SUSPICIOUS_TLDS = frozenset({
     "xyz", "top", "zip", "click", "site", "online", "live", "date", "club",
@@ -181,6 +189,25 @@ def analyze_standalone_url(raw_url: str, vt_api_key: str | None = None, abuseipd
         raise ValueError("Enter a valid URL with a hostname.")
     indicators: list[dict] = []
     score = 0
+    
+    # Lexical Checks
+    ent = shannon_entropy(original_hostname)
+    if ent > 3.8:
+        indicators.append(_url_indicator(f"High domain entropy ({ent:.2f}) indicates a potential DGA (Domain Generation Algorithm) string", "medium", 20))
+        score += 20
+        
+    if candidate_parsed.username or candidate_parsed.password or "@" in candidate_parsed.netloc:
+        indicators.append(_url_indicator("URL contains embedded credentials (@ symbol trick) commonly used to mask true destinations", "high", 45))
+        score += 45
+        
+    encoded_count = candidate.count('%')
+    if len(candidate) > 0 and (encoded_count / len(candidate)) > 0.10:
+        indicators.append(_url_indicator("High density of percent-encoding (%XX) detected, common in URL obfuscation", "medium", 15))
+        score += 15
+        
+    if candidate_parsed.port and candidate_parsed.port not in {80, 443, 8080}:
+        indicators.append(_url_indicator(f"URL uses a non-standard port ({candidate_parsed.port}) for web traffic", "low", 10))
+        score += 10
     
     if status == "redirected":
         indicators.append(_url_indicator(f"URL redirected. Final destination: {hostname}", "medium", 15))

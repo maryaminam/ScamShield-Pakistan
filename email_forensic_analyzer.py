@@ -667,30 +667,40 @@ class EmailForensicAnalyzer:
             socket.setdefaulttimeout(_WHOIS_TIMEOUT_SECONDS)
             try:
                 w = whois_module.whois(domain)
+                creation = w.creation_date
+                registrar = w.registrar
             finally:
                 socket.setdefaulttimeout(original_timeout)
-        except socket.timeout:
-            return {
-                "domain": domain,
-                "error": f"WHOIS lookup timed out after {_WHOIS_TIMEOUT_SECONDS}s",
-            }
-        except Exception as exc:
-            exc_text = str(exc)
-            if len(exc_text) > 150 or "TERMS OF USE" in exc_text.upper():
-                error_msg = (
-                    f"WHOIS lookup failed: {domain} not found or "
-                    f"registry did not respond"
-                )
-            else:
-                error_msg = f"WHOIS lookup failed: {exc_text}"
-            return {"domain": domain, "error": error_msg}
+        except Exception:
+            w = None
+            creation = None
+            registrar = None
 
-        creation = w.creation_date
-        # Some registrars return a list of dates.
+        if not creation:
+            try:
+                rdap_resp = requests.get(f"https://rdap.org/domain/{domain}", timeout=_WHOIS_TIMEOUT_SECONDS)
+                if rdap_resp.status_code == 200:
+                    data = rdap_resp.json()
+                    for event in data.get("events", []):
+                        if event.get("eventAction") == "registration":
+                            d_str = event.get("eventDate", "").replace("Z", "+00:00")
+                            creation = datetime.fromisoformat(d_str)
+                            break
+                    for entity in data.get("entities", []):
+                        if "registrar" in entity.get("roles", []):
+                            vcard = entity.get("vcardArray", [])
+                            if len(vcard) > 1:
+                                for prop in vcard[1]:
+                                    if prop[0] == "fn":
+                                        registrar = prop[3]
+                                        break
+            except Exception:
+                pass
+
         if isinstance(creation, list):
             creation = creation[0]
 
-        age_days: int | None = None
+        age_days: int | str = "unknown"
         is_young = False
         creation_iso: str | None = None
 
@@ -703,7 +713,7 @@ class EmailForensicAnalyzer:
 
         return {
             "domain": domain,
-            "registrar": w.registrar,
+            "registrar": registrar or "unknown",
             "creation_date": creation_iso,
             "domain_age_days": age_days,
             "is_young": is_young,
