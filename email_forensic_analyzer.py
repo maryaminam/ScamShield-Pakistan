@@ -139,6 +139,8 @@ _WEIGHTS = {
     "homograph_domain": 25, # link domain visually mimics a known brand or uses punycode
     "vt_url_malicious": 25,  # VirusTotal flagged a link domain
     "abuseip_url": 20,       # AbuseIPDB flagged the IP associated with a link domain
+    "url_path_brand": 25,    # URL path contains a brand keyword not matching domain
+    "url_path_lure": 10,     # URL path contains phishing lure terminology
 }
 
 # Brand → set of legitimate sender domain suffixes. Used by detect_spoofing()
@@ -485,7 +487,42 @@ class EmailForensicAnalyzer:
     # Step 5: URL & link extraction
     # ------------------------------------------------------------------
 
-
+    def _check_url_path_indicators(self, url: str) -> dict:
+        """Check URL path/filename for brand keywords or phishing lure terms."""
+        result = {
+            "path_brand_match": False,
+            "path_brand_keyword": None,
+            "lure_terms_found": []
+        }
+        try:
+            parsed = urlparse(url)
+            path_lower = parsed.path.lower()
+            if not path_lower:
+                return result
+                
+            filename_part = path_lower.split('/')[-1] if '/' in path_lower else path_lower
+            norm_filename = re.sub(r'[\-_0-9]', '', filename_part)
+            
+            for brand, legitimate_domains in _BRAND_DOMAINS.items():
+                if len(brand) >= 3 and (brand in norm_filename):
+                    domain = parsed.netloc.lower()
+                    labels = domain.split(".")
+                    registrable = ".".join(labels[-2:]) if len(labels) >= 2 else domain
+                    if not any(registrable == d or registrable.endswith(f".{d}") for d in legitimate_domains):
+                        result["path_brand_match"] = True
+                        result["path_brand_keyword"] = brand
+                        break
+                        
+            lure_keywords = ["update", "verify", "confirm", "secure", "login", "signin", "account", "suspended", "unlock", "validate"]
+            has_lure_ext = any(path_lower.endswith(ext) for ext in [".htm", ".html", ".php", ".aspx", ".asp", ".jsp"])
+            if has_lure_ext:
+                found_lures = [lure for lure in lure_keywords if lure in path_lower]
+                if found_lures:
+                    result["lure_terms_found"] = found_lures
+        except Exception:
+            pass
+            
+        return result
 
     def extract_urls(self) -> list[dict]:
         """Extract all URLs from the email body and detect display/href mismatches.
@@ -503,6 +540,8 @@ class EmailForensicAnalyzer:
                 - domain      : domain extracted from the URL
                 - mismatch    : True if display text domain != href domain
         """
+        from url_analyzer import resolve_url, is_homograph
+
         urls: list[dict] = []
         seen: set[str] = set()
 
@@ -555,6 +594,7 @@ class EmailForensicAnalyzer:
                     "domain": res_domain,
                     "mismatch": mismatch,
                     "is_homograph": is_homograph(href_domain) or is_homograph(res_domain),
+                    "path_indicators": self._check_url_path_indicators(resolved_href),
                 })
 
             # Also grab URLs in plain text that aren't inside <a> tags.
@@ -570,6 +610,7 @@ class EmailForensicAnalyzer:
                         "domain": res_domain,
                         "mismatch": False,
                         "is_homograph": is_homograph(match_domain) or is_homograph(res_domain),
+                        "path_indicators": self._check_url_path_indicators(res_match),
                     })
 
         elif plain_body:
@@ -584,6 +625,7 @@ class EmailForensicAnalyzer:
                         "domain": res_domain,
                         "mismatch": False,
                         "is_homograph": is_homograph(match_domain) or is_homograph(res_domain),
+                        "path_indicators": self._check_url_path_indicators(res_match),
                     })
 
         return urls
@@ -1308,6 +1350,30 @@ class EmailForensicAnalyzer:
                 pts,
                 f"Linked domain '{homographs[0]}' uses punycode or mimics a known brand.",
             )
+
+        # 12. URL Path analysis (brand spoofing / lure keywords in path)
+        if urls:
+            path_brand_hits = [u for u in urls if u.get("path_indicators", {}).get("path_brand_match")]
+            if path_brand_hits:
+                pts = _WEIGHTS["url_path_brand"]
+                score += pts
+                u = path_brand_hits[0]
+                kw = u.get("path_indicators", {}).get("path_brand_keyword", "")
+                breakdown["url_path_brand"] = (
+                    pts,
+                    f"Link path contains brand keyword: {kw} on {u.get('domain')}",
+                )
+
+            path_lure_hits = [u for u in urls if u.get("path_indicators", {}).get("lure_terms_found")]
+            if path_lure_hits:
+                pts = _WEIGHTS["url_path_lure"]
+                score += pts
+                u = path_lure_hits[0]
+                terms = ", ".join(u.get("path_indicators", {}).get("lure_terms_found", []))
+                breakdown["url_path_lure"] = (
+                    pts,
+                    f"Link path contains phishing lure terminology ({terms}) on {u.get('domain')}",
+                )
 
         # Determine threat level.
         if score >= 75:
