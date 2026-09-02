@@ -9,6 +9,7 @@ from collections import Counter
 from urllib.parse import urlparse
 from email_forensic_analyzer import EmailForensicAnalyzer, _BRAND_DOMAINS
 import os
+import re
 
 _VT_URL_CACHE: dict[str, dict] = {}
 _TOP_DOMAINS_MAP: dict[str, set[str]] = {}
@@ -264,6 +265,24 @@ def analyze_standalone_url(raw_url: str, vt_api_key: str | None = None, abuseipd
                     indicators.append(_url_indicator(f"Brand keyword '{brand}' appears on a non-official domain ({hostname})", "high", 25))
                     score += 25
                     break
+
+    # Path analysis for brand keywords and phishing lures
+    path_lower = candidate_parsed.path.lower()
+    filename_part = path_lower.split('/')[-1] if '/' in path_lower else path_lower
+    norm_filename = re.sub(r'[\-_0-9]', '', filename_part)
+
+    for brand, legitimate_domains in _BRAND_DOMAINS.items():
+        if len(brand) >= 3 and (brand in norm_filename):
+            if not any(registrable == domain or registrable.endswith(f".{domain}") for domain in legitimate_domains):
+                indicators.append(_url_indicator("URL path/filename contains a brand or organization keyword not matching the actual domain", "high", 25))
+                score += 25
+                break
+
+    lure_keywords = ["update", "verify", "confirm", "secure", "login", "signin", "account", "suspended", "unlock", "validate"]
+    has_lure_ext = any(path_lower.endswith(ext) for ext in [".htm", ".html", ".php", ".aspx", ".asp", ".jsp"])
+    if has_lure_ext and any(lure in path_lower for lure in lure_keywords):
+        indicators.append(_url_indicator("URL path contains common phishing-lure terminology", "low", 10))
+        score += 10
 
     # Doing WHOIS programmatically instead of creating an email analyzer instance.
     synthetic = f"From: test@{hostname}\n\n"

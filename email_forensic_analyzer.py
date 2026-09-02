@@ -149,6 +149,7 @@ _BRAND_DOMAINS = {
                   "live.com", "hotmail.com", "azure.com", "microsoftonline.com"},
     "apple": {"apple.com", "icloud.com", "me.com", "mac.com"},
     "google": {"google.com", "gmail.com", "googlemail.com", "youtube.com"},
+    "aol": {"aol.com"},
     "amazon": {"amazon.com", "amazon.co.uk", "amazon.de", "amazonses.com",
                "amazon.in", "amazon.ca", "aws.amazon.com"},
     "netflix": {"netflix.com", "mailer.netflix.com"},
