@@ -147,6 +147,8 @@ _WEIGHTS = {
     "url_path_lure": 10,     # URL path contains phishing lure terminology
     "attachment_brand_spoof": 20,  # attachment filename contains a brand keyword
                                     # that doesn't match the sender domain
+    "ml_manipulation": 12,          # NLP zero-shot model flagged manipulation
+                                     # patterns that regex alone missed
 }
 
 # Brand → set of legitimate sender domain suffixes. Used by detect_spoofing()
@@ -1165,11 +1167,23 @@ class EmailForensicAnalyzer:
             {m.lower() for m in _IMPERSONATION_PATTERNS.findall(combined)}
         )
 
+        # ── NLP zero-shot classification (lazy-loaded, graceful fallback) ──
+        from nlp_phishing_classifier import classify_text
+
+        ml_result = classify_text(combined)
+        ml_scores = ml_result.get("scores", {})
+        ml_flagged = ml_result.get("flagged", [])
+        ml_max_score = ml_result.get("ml_max_score", 0.0)
+
         return {
             "urgency": urgency,
             "credential": credential,
             "impersonation": impersonation,
             "total_flags": len(urgency) + len(credential) + len(impersonation),
+            "ml_scores": ml_scores,
+            "ml_flagged": ml_flagged,
+            "ml_max_score": ml_max_score,
+            "ml_available": ml_result.get("available", False),
         }
 
     # ------------------------------------------------------------------
@@ -1345,6 +1359,58 @@ class EmailForensicAnalyzer:
                 f"Matched: {', '.join(patterns['impersonation'][:5])}",
             )
 
+        # 8b. NLP zero-shot classification — catches subtle manipulation
+        # that regex misses and reinforces regex hits with high ML confidence.
+        ml_scores = patterns.get("ml_scores", {})
+        ml_flagged = patterns.get("ml_flagged", [])
+
+        if ml_flagged:
+            # ML detected patterns that regex did not catch
+            regex_missed = [
+                label for label in ml_flagged
+                if not (
+                    (label == "urgency" and patterns.get("urgency"))
+                    or (label == "credential theft" and patterns.get("credential"))
+                    or (label == "brand impersonation" and patterns.get("impersonation"))
+                )
+            ]
+            if regex_missed:
+                pts = _WEIGHTS["ml_manipulation"]
+                score += pts
+                breakdown["ml_manipulation"] = (
+                    pts,
+                    f"ML detected: {', '.join(regex_missed)} "
+                    f"(confidence {max(ml_scores[l] for l in regex_missed):.0%})",
+                )
+
+            # ML high confidence reinforces existing regex signals
+            urgency_conf = ml_scores.get("urgency", 0)
+            credential_conf = ml_scores.get("credential theft", 0)
+            if urgency_conf >= 0.75 and patterns.get("urgency") and "urgency_lang" in breakdown:
+                bonus = min(
+                    int(_WEIGHTS["urgency_lang"] * 0.5),
+                    int(urgency_conf * 10),
+                )
+                if bonus > 0:
+                    score += bonus
+                    old_pts, old_reason = breakdown["urgency_lang"]
+                    breakdown["urgency_lang"] = (
+                        old_pts + bonus,
+                        f"{old_reason} (ML {urgency_conf:.0%} confidence)",
+                    )
+            if credential_conf >= 0.75 and patterns.get("credential") and "credential_lang" in breakdown:
+                bonus = min(
+                    int(_WEIGHTS["credential_lang"] * 0.5),
+                    int(credential_conf * 10),
+                )
+                if bonus > 0:
+                    score += bonus
+                    old_pts, old_reason = breakdown["credential_lang"]
+                    breakdown["credential_lang"] = (
+                        old_pts + bonus,
+                        f"{old_reason} (ML {credential_conf:.0%} confidence)",
+                    )
+
         # 9. Header anomaly — DKIM signing domain mismatch (not in spoofing)
         dkim_anomaly = any(
             "DKIM signing domain" in a
@@ -1431,6 +1497,7 @@ class EmailForensicAnalyzer:
                 )
 
         # Determine threat level.
+        score = min(score, 100)  # ML bonuses can exceed the 0–100 budget
         if score >= 75:
             level = "Critical"
         elif score >= 50:

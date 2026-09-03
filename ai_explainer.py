@@ -14,7 +14,78 @@ import logging
 import os
 from typing import Any
 
+from pydantic import BaseModel, Field
+
 log = logging.getLogger(__name__)
+
+
+# ── Pydantic schema for strict LLM output validation ─────────────
+class ExplanationResponse(BaseModel):
+    """Strict schema that every LLM response must satisfy."""
+
+    plain_summary: str = Field(
+        ...,
+        description=(
+            "2-3 sentence summary of what this analyzed item (email or URL) is "
+            "and why it received this risk level, written for someone with no "
+            "security background"
+        ),
+    )
+    key_concerns: list[str] = Field(
+        ...,
+        max_length=5,
+        description="Short bullets referencing specific names, domains, or phrases from the input",
+    )
+    what_this_means: str = Field(
+        ...,
+        description="1 paragraph explaining the practical implication for the user",
+    )
+    recommended_actions: list[str] = Field(
+        ...,
+        max_length=4,
+        description="Imperative-voice actions the user should take",
+    )
+
+
+# Hand-crafted JSON schema (no $ref, no additionalProperties) — compatible
+# with Gemini ``response_schema`` and Groq ``response_format``.
+_JSON_SCHEMA: dict = {
+    "type": "object",
+    "properties": {
+        "plain_summary": {
+            "type": "string",
+            "description": (
+                "2-3 sentence summary of what this analyzed item is and why "
+                "it received this risk level, written for a non-technical user"
+            ),
+        },
+        "key_concerns": {
+            "type": "array",
+            "items": {"type": "string"},
+            "maxItems": 5,
+            "description": (
+                "Short bullets referencing specific names, domains, or phrases"
+            ),
+        },
+        "what_this_means": {
+            "type": "string",
+            "description": "1 paragraph explaining the practical implication",
+        },
+        "recommended_actions": {
+            "type": "array",
+            "items": {"type": "string"},
+            "maxItems": 4,
+            "description": "Imperative-voice actions the user should take",
+        },
+    },
+    "required": [
+        "plain_summary",
+        "key_concerns",
+        "what_this_means",
+        "recommended_actions",
+    ],
+    "additionalProperties": False,
+}
 
 # ── In-process explanation cache ────────────────────────────────────
 _cache: dict[str, dict] = {}
@@ -36,23 +107,20 @@ _SYSTEM_PROMPT = (
 )
 
 _OUTPUT_SCHEMA_INSTRUCTION = """
-Return ONLY a JSON object with exactly these keys:
-{
-  "plain_summary": "2-3 sentence summary of what this analyzed item (email or URL) is and why it received this risk level, written for someone with no security background",
-  "key_concerns": ["short bullet", ...],
-  "what_this_means": "1 paragraph explaining the practical implication",
-  "recommended_actions": ["action 1", "action 2", ...]
-}
-Rules:
+Return ONLY a JSON object conforming to the provided response_schema.
+The SDK enforces the exact key structure — do NOT add extra keys.
+
+Guidance for content quality:
 - key_concerns: max 5 items
 - recommended_actions: max 4 items, imperative voice
-- Do NOT add any keys beyond the four listed above
 - Every bullet and sentence should reference an actual name, domain, or
   phrase from the input — not a category label
+- If ml_scores are provided in the input, mention any high-confidence ML
+  detections (social manipulation, urgency, etc.) in the explanation
 
 Example of the specificity expected:
 BAD:  "This item has some authentication issues and a suspicious sender."
-GOOD: "This email claims to be from 'Intimação eletrônica' but was actually
+GOOD: "This email claims to be from 'Intima\u00e7\u00e3o eletr\u00f4nica' but was actually
        sent through cartorio02@uorak.com, and Microsoft's own systems
        flagged that the domain shown to you doesn't match the domain that
        actually sent it — a classic spoofing pattern."
@@ -105,6 +173,8 @@ def _build_trimmed_input(result: dict) -> dict:
             "urgency": (patterns.get("urgency") or [])[:5],
             "credential": (patterns.get("credential") or [])[:5],
             "impersonation": (patterns.get("impersonation") or [])[:5],
+            "ml_scores": patterns.get("ml_scores", {}),
+            "ml_flagged": patterns.get("ml_flagged", []),
         },
         "dns": {
             "spf_exists": _safe_get(dns, "spf", "exists"),
@@ -234,7 +304,12 @@ def _build_fallback(result: dict) -> dict:
 # ── LLM provider calls ────────────────────────────────────────────
 
 def _call_groq(user_prompt: str, api_key: str) -> str:
-    """Call Groq's chat completions API. Returns raw response text."""
+    """Call Groq's chat completions API with structured output.
+
+    Uses ``response_format`` with an explicit JSON schema so the model is
+    constrained to produce the exact keys we expect, eliminating
+    ``JSONDecodeError`` and missing-key failures.
+    """
     from groq import Groq  # lazy import
 
     client = Groq(api_key=api_key, timeout=10.0)
@@ -244,7 +319,14 @@ def _call_groq(user_prompt: str, api_key: str) -> str:
             {"role": "system", "content": _SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
         ],
-        response_format={"type": "json_object"},
+        response_format={
+            "type": "json_schema",
+            "json_schema": {
+                "name": "explanation_response",
+                "strict": True,
+                "schema": _JSON_SCHEMA,
+            },
+        },
         temperature=0.6,   # higher temp for natural phrasing; facts are
                            # constrained by the JSON input, not the model
         max_tokens=1500,
@@ -253,7 +335,12 @@ def _call_groq(user_prompt: str, api_key: str) -> str:
 
 
 def _call_gemini(user_prompt: str, api_key: str) -> str:
-    """Call Google Gemini via the google-genai SDK. Returns raw response text."""
+    """Call Google Gemini via the google-genai SDK with ``response_schema``.
+
+    The explicit schema forces Gemini to emit JSON conforming exactly to
+    :class:`ExplanationResponse`, eliminating hallucinated extra keys or
+    malformed output.
+    """
     from google import genai  # lazy import
 
     client = genai.Client(api_key=api_key)
@@ -263,6 +350,7 @@ def _call_gemini(user_prompt: str, api_key: str) -> str:
         config=genai.types.GenerateContentConfig(
             max_output_tokens=800,
             response_mime_type="application/json",
+            response_schema=_JSON_SCHEMA,
             # temperature/top_p/top_k removed — Gemini 3.6 Flash no longer
             # accepts these sampling params; passing them can error or be ignored
         ),
@@ -272,22 +360,21 @@ def _call_gemini(user_prompt: str, api_key: str) -> str:
 
 
 def _parse_llm_response(raw_text: str) -> dict:
-    """Parse the LLM's raw text into the expected dict schema.
+    """Parse and strictly validate the LLM's JSON output.
 
-    Raises ``json.JSONDecodeError`` if the output is not valid JSON, and
-    ``ValueError`` if required keys are missing.
+    1. ``json.loads`` — rejects non-JSON output.
+    2. ``ExplanationResponse.model_validate`` — Pydantic enforces types,
+       required keys, and ``max_length`` constraints on lists.
+
+    Raises ``json.JSONDecodeError`` for non-JSON and ``pydantic.ValidationError``
+    (which subclasses ``ValueError``) for schema violations.
     """
     data = json.loads(raw_text)
 
-    # Validate required keys
-    for key in ("plain_summary", "key_concerns", "what_this_means", "recommended_actions"):
-        if key not in data:
-            raise ValueError(f"LLM response missing required key: {key}")
-
-    # Enforce length limits
-    data["key_concerns"] = list(data["key_concerns"])[:5]
-    data["recommended_actions"] = list(data["recommended_actions"])[:4]
-    return data
+    # Pydantic strict validation — catches missing keys, wrong types, and
+    # list-length violations in a single pass.
+    validated = ExplanationResponse.model_validate(data)
+    return validated.model_dump()
 
 
 # ── Main entry point ───────────────────────────────────────────────
