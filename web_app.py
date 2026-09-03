@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from secrets import token_urlsafe
 from threading import Lock
+import time
 from urllib.parse import urlparse
 
 from flask import Flask, Response, jsonify, render_template, request
@@ -64,6 +65,32 @@ _SUSPICIOUS_TLDS = {"xyz", "top", "tk", "club", "info", "work"}
 # enrichment budget generous enough for optional reputation data without
 # hanging the main report response.
 _ENRICHMENT_BUDGET_SECONDS = 8.0
+
+# ── Security: Rate Limiting state ──────────────────────────────────────────
+_RATE_LIMITS: dict[str, list[float]] = {}
+_RATE_LIMIT_LOCK = Lock()
+
+def _is_rate_limited(ip: str, max_reqs: int = 30, window: int = 60) -> bool:
+    """Simple sliding window rate limiter per IP address."""
+    now = time.time()
+    with _RATE_LIMIT_LOCK:
+        history = _RATE_LIMITS.setdefault(ip, [])
+        # Keep requests within the window
+        history[:] = [t for t in history if now - t < window]
+        if len(history) >= max_reqs:
+            return True
+        history.append(now)
+    return False
+
+@app.after_request
+def apply_security_headers(response: Response) -> Response:
+    """Apply standard web security headers to all responses."""
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
+    return response
 
 
 def _find_available_port(start_port: int, host: str = "127.0.0.1") -> int:
@@ -221,6 +248,9 @@ def index():
 
 @app.post("/api/analyze-email")
 def analyze_email_api():
+    if _is_rate_limited(request.remote_addr or "unknown"):
+        return jsonify({"error": "Too many requests. Please try again later."}), 429
+        
     raw_text, source_name = _get_email_source()
     if not raw_text:
         return jsonify({"error": "Upload a .eml file or paste raw email content first."}), 400
@@ -237,6 +267,9 @@ def analyze_email_api():
 
 @app.post("/api/analyze-url")
 def analyze_url_api():
+    if _is_rate_limited(request.remote_addr or "unknown", max_reqs=20):
+        return jsonify({"error": "Too many requests. Please try again later."}), 429
+        
     body = request.get_json(silent=True) or {}
     raw_url = str(body.get("url") or "").strip()
     if not raw_url:
@@ -280,6 +313,9 @@ def dashboard_stats_api():
 
 @app.post("/api/explain")
 def explain_api():
+    if _is_rate_limited(request.remote_addr or "unknown", max_reqs=10):
+        return jsonify({"error": "Too many requests to AI explainer. Please wait."}), 429
+        
     body = request.get_json(silent=True) or {}
     analysis = body.get("analysis", body)
     source = body.get("source", "email")
@@ -299,7 +335,7 @@ def too_large(_error):
 if __name__ == "__main__":
     host = os.environ.get("WEB_APP_HOST", "127.0.0.1")
     requested_port = int(os.environ.get("WEB_APP_PORT", "5000"))
-    debug_mode = os.environ.get("FLASK_DEBUG", "1") not in {"0", "false", "False"}
+    debug_mode = os.environ.get("FLASK_DEBUG", "0") not in {"0", "false", "False"}
     # Werkzeug converts some Windows bind failures into SystemExit, bypassing a
     # surrounding OSError handler. Pick a bindable port before it starts.
     port = _find_available_port(requested_port, host=host)

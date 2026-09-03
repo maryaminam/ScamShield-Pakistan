@@ -70,12 +70,50 @@ def _registrable_domain(hostname: str) -> str:
 def _url_indicator(flag: str, severity: str, points: int) -> dict:
     return {"flag": flag, "severity": severity, "points": points}
 
+def _is_safe_url(url: str) -> bool:
+    """Check if the URL resolves to a public, safe IP address."""
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        if not hostname:
+            # Handle cases where url might just be a domain without scheme and urlparse fails
+            hostname = url.split("/")[0]
+        if not hostname:
+            return False
+            
+        if hostname.lower() in ("localhost", "127.0.0.1", "0.0.0.0", "::1"):
+            return False
+            
+        ip = socket.gethostbyname(hostname)
+        return ipaddress.ip_address(ip).is_global
+    except Exception:
+        return False
+
+def _safe_request(method: str, url: str, **kwargs) -> requests.Response:
+    """Perform a request ensuring we do not fetch internal/private IPs.
+    Handles redirects securely by re-validating each hop.
+    """
+    kwargs["allow_redirects"] = False
+    current_url = url
+    for _ in range(5):
+        if not _is_safe_url(current_url):
+            raise requests.RequestException("Blocked request to internal or private IP")
+        resp = requests.request(method, current_url, **kwargs)
+        if resp.is_redirect and "location" in resp.headers:
+            from urllib.parse import urljoin
+            current_url = urljoin(current_url, resp.headers["location"])
+        else:
+            resp.url = current_url
+            return resp
+    raise requests.RequestException("Too many redirects")
+
+
 def resolve_url(url: str) -> tuple[str, str, str]:
     """Follow redirects to find the final URL and domain.
     Returns (final_url, final_domain, status)
     """
     try:
-        resp = requests.head(url, allow_redirects=True, timeout=5.0)
+        resp = _safe_request("HEAD", url, timeout=5.0)
         final_url = resp.url
         final_domain = urlparse(final_url).netloc.lower()
         if final_url != url:
@@ -138,7 +176,8 @@ def analyze_page_content(url: str, final_domain: str) -> list[dict]:
     indicators = []
     try:
         from bs4 import BeautifulSoup
-        resp = requests.get(
+        resp = _safe_request(
+            "GET",
             url, 
             timeout=4.0, 
             headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
