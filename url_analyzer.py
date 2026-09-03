@@ -1,3 +1,4 @@
+import asyncio
 import ipaddress
 import socket
 import requests
@@ -374,5 +375,335 @@ def analyze_standalone_url(raw_url: str, vt_api_key: str | None = None, abuseipd
         "threat_level": level,
         "domain_info": domain_info, 
         "indicators": indicators, 
+        "recommendation": recommendation
+    }
+
+
+# ======================================================================
+# Async variants — used by the FastAPI web app for non-blocking I/O.
+# Sync originals above are preserved for backward compatibility.
+# ======================================================================
+
+async def async_check_url_virustotal(url: str, api_key: str) -> dict:
+    """Async VirusTotal URL scan using httpx."""
+    import httpx
+
+    cache_entry = _VT_URL_CACHE.get(url)
+    if cache_entry and time.time() - cache_entry["timestamp"] < 3600:
+        return cache_entry["result"]
+
+    url_id = base64.urlsafe_b64encode(url.encode()).decode().strip("=")
+    api_url = f"https://www.virustotal.com/api/v3/urls/{url_id}"
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(api_url, headers={"x-apikey": api_key})
+            if resp.status_code == 404:
+                res = {"url": url, "detections": 0, "is_malicious": False}
+                _VT_URL_CACHE[url] = {"timestamp": time.time(), "result": res}
+                return res
+            resp.raise_for_status()
+            data = resp.json().get("data", {}).get("attributes", {})
+            stats = data.get("last_analysis_stats", {})
+            detections = stats.get("malicious", 0) + stats.get("suspicious", 0)
+            res = {"url": url, "detections": detections, "is_malicious": detections > 0}
+            _VT_URL_CACHE[url] = {"timestamp": time.time(), "result": res}
+            return res
+    except httpx.HTTPError as exc:
+        return {"url": url, "error": f"VirusTotal request failed: {exc}"}
+
+
+async def async_is_safe_url(url: str) -> bool:
+    """Async check if URL resolves to a public, safe IP address using aiodns."""
+    import aiodns
+
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        if not hostname:
+            hostname = url.split("/")[0]
+        if not hostname:
+            return False
+
+        if hostname.lower() in ("localhost", "127.0.0.1", "0.0.0.0", "::1"):
+            return False
+
+        resolver = aiodns.DNSResolver(timeout=3.0)
+        try:
+            result = await resolver.gethostbyname(hostname, socket.AF_INET)
+            ip = result.name if hasattr(result, 'name') else result.addresses[0] if result.addresses else None
+            if ip is None:
+                return False
+            return ipaddress.ip_address(ip).is_global
+        except Exception:
+            return False
+    except Exception:
+        return False
+
+
+async def async_safe_request(method: str, url: str, **kwargs) -> "httpx.Response":
+    """Async request ensuring we do not fetch internal/private IPs."""
+    import httpx
+    from urllib.parse import urljoin
+
+    kwargs.pop("allow_redirects", None)
+    current_url = url
+    for _ in range(5):
+        if not await async_is_safe_url(current_url):
+            raise httpx.RequestError("Blocked request to internal or private IP")
+        async with httpx.AsyncClient(follow_redirects=False, **{
+            k: v for k, v in kwargs.items() if k in ("timeout",)
+        }) as client:
+            resp = await client.request(method, current_url, **{
+                k: v for k, v in kwargs.items() if k not in ("timeout",)
+            })
+        if resp.is_redirect and "location" in resp.headers:
+            current_url = urljoin(current_url, resp.headers["location"])
+        else:
+            resp.url = httpx.URL(current_url)
+            return resp
+    raise httpx.RequestError("Too many redirects")
+
+
+async def async_resolve_url(url: str) -> tuple[str, str, str]:
+    """Async follow redirects to find the final URL and domain."""
+    import httpx
+
+    try:
+        resp = await async_safe_request("HEAD", url, timeout=5.0)
+        final_url = str(resp.url)
+        final_domain = urlparse(final_url).netloc.lower()
+        if final_url != url:
+            return final_url, final_domain, "redirected"
+        return final_url, final_domain, "ok"
+    except httpx.TimeoutException:
+        return url, urlparse(url).netloc.lower(), "timeout"
+    except (httpx.HTTPError, Exception):
+        return url, urlparse(url).netloc.lower(), "error"
+
+
+async def async_analyze_page_content(url: str, final_domain: str) -> list[dict]:
+    """Async inspect of live HTML for phishing indicators."""
+    import httpx
+
+    indicators = []
+    try:
+        from bs4 import BeautifulSoup
+        resp = await async_safe_request(
+            "GET", url,
+            timeout=4.0,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+        )
+        if resp.status_code != 200:
+            return []
+
+        soup = BeautifulSoup(resp.text, "html.parser")
+
+        if soup.find("input", {"type": "password"}):
+            indicators.append(_url_indicator("Page contains a password input field (potential credential harvesting)", "high", 30))
+
+        cross_domain_actions = 0
+        final_reg = _registrable_domain(final_domain)
+        for form in soup.find_all("form", action=True):
+            action = form["action"].strip()
+            if action.startswith("http://") or action.startswith("https://"):
+                action_domain = urlparse(action).netloc.lower()
+                action_reg = _registrable_domain(action_domain)
+                if action_reg and action_reg != final_reg:
+                    cross_domain_actions += 1
+
+        if cross_domain_actions > 0:
+            indicators.append(_url_indicator("Page contains form(s) submitting data to a different external domain", "high", 40))
+
+        title_tag = soup.find("title")
+        if title_tag and title_tag.string:
+            title_text = title_tag.string.lower()
+            norm_title = title_text.replace("1", "l").replace("0", "o")
+            for brand, legitimate in _BRAND_DOMAINS.items():
+                if brand in norm_title:
+                    if not any(final_domain == d or final_domain.endswith("." + d) for d in legitimate):
+                        indicators.append(_url_indicator(f"Page title claims to be '{brand}' but domain is unofficial", "high", 50))
+                        break
+
+        return indicators
+    except Exception:
+        return []
+
+
+async def async_analyze_standalone_url(
+    raw_url: str,
+    vt_api_key: str | None = None,
+    abuseipdb_api_key: str | None = None,
+) -> dict:
+    """Async version of analyze_standalone_url with fully concurrent I/O."""
+    candidate = raw_url.strip()
+    candidate_parsed = urlparse(candidate if "://" in candidate else f"http://{candidate}")
+    original_hostname = (candidate_parsed.hostname or "").lower().rstrip(".")
+
+    res_url, res_domain, status = await async_resolve_url(
+        candidate if "://" in candidate else f"http://{candidate}"
+    )
+    parsed = urlparse(res_url)
+    hostname = res_domain
+    if not hostname:
+        raise ValueError("Enter a valid URL with a hostname.")
+
+    indicators: list[dict] = []
+    score = 0
+
+    # Lexical Checks (all synchronous / CPU-only, unchanged)
+    ent = shannon_entropy(original_hostname)
+    if ent > 3.8:
+        indicators.append(_url_indicator(f"High domain entropy ({ent:.2f}) indicates a potential DGA (Domain Generation Algorithm) string", "medium", 20))
+        score += 20
+
+    if candidate_parsed.username or candidate_parsed.password or "@" in candidate_parsed.netloc:
+        indicators.append(_url_indicator("URL contains embedded credentials (@ symbol trick) commonly used to mask true destinations", "high", 45))
+        score += 45
+
+    encoded_count = candidate.count('%')
+    if len(candidate) > 0 and (encoded_count / len(candidate)) > 0.10:
+        indicators.append(_url_indicator("High density of percent-encoding (%XX) detected, common in URL obfuscation", "medium", 15))
+        score += 15
+
+    if candidate_parsed.port and candidate_parsed.port not in {80, 443, 8080}:
+        indicators.append(_url_indicator(f"URL uses a non-standard port ({candidate_parsed.port}) for web traffic", "low", 10))
+        score += 10
+
+    if status == "redirected":
+        indicators.append(_url_indicator(f"URL redirected. Final destination: {hostname}", "medium", 15))
+        score += 15
+    elif status == "timeout":
+        indicators.append(_url_indicator("URL timed out during resolution (suspicious shortener/host)", "low", 10))
+        score += 10
+    elif status == "error":
+        indicators.append(_url_indicator("URL connection failed or was refused", "low", 10))
+        score += 10
+
+    try:
+        ipaddress.ip_address(hostname)
+        indicators.append(_url_indicator("URL uses a raw IP address instead of a domain", "high", 30))
+        score += 30
+        is_ip = True
+    except ValueError:
+        is_ip = False
+
+    if parsed.scheme.lower() != "https":
+        indicators.append(_url_indicator("URL does not use HTTPS", "medium", 15))
+        score += 15
+
+    labels = hostname.split(".")
+    if not is_ip and labels and labels[-1] in _SUSPICIOUS_TLDS:
+        indicators.append(_url_indicator(f"Uncommon or abuse-prone .{labels[-1]} TLD", "medium", 15))
+        score += 15
+
+    if not is_ip and len(labels) - 2 > 3:
+        indicators.append(_url_indicator("Excessive subdomain depth", "medium", 10))
+        score += 10
+
+    registrable = _registrable_domain(hostname)
+    orig_registrable = _registrable_domain(original_hostname)
+
+    is_hg_orig = is_homograph(original_hostname)
+    is_hg_res = is_homograph(hostname)
+
+    if is_hg_orig or is_hg_res:
+        bad_domain = original_hostname if is_hg_orig else hostname
+        indicators.append(_url_indicator(f"Domain '{bad_domain}' uses punycode or is a misspelled variant of a well-known brand", "high", 60))
+        score += 60
+    else:
+        brand_hit = False
+        for brand, legitimate_domains in _BRAND_DOMAINS.items():
+            if brand in original_hostname and not any(orig_registrable == domain or orig_registrable.endswith(f".{domain}") for domain in legitimate_domains):
+                indicators.append(_url_indicator(f"Brand keyword '{brand}' appears on a non-official domain ({original_hostname})", "high", 25))
+                score += 25
+                brand_hit = True
+                break
+        if not brand_hit:
+            for brand, legitimate_domains in _BRAND_DOMAINS.items():
+                if brand in hostname and not any(registrable == domain or registrable.endswith(f".{domain}") for domain in legitimate_domains):
+                    indicators.append(_url_indicator(f"Brand keyword '{brand}' appears on a non-official domain ({hostname})", "high", 25))
+                    score += 25
+                    break
+
+    # Path analysis
+    path_lower = candidate_parsed.path.lower()
+    filename_part = path_lower.split('/')[-1] if '/' in path_lower else path_lower
+    norm_filename = re.sub(r'[\-_0-9]', '', filename_part)
+
+    for brand, legitimate_domains in _BRAND_DOMAINS.items():
+        if len(brand) >= 3 and (brand in norm_filename):
+            if not any(registrable == domain or registrable.endswith(f".{domain}") for domain in legitimate_domains):
+                indicators.append(_url_indicator("URL path/filename contains a brand or organization keyword not matching the actual domain", "high", 25))
+                score += 25
+                break
+
+    lure_keywords = ["update", "verify", "confirm", "secure", "login", "signin", "account", "suspended", "unlock", "validate"]
+    has_lure_ext = any(path_lower.endswith(ext) for ext in [".htm", ".html", ".php", ".aspx", ".asp", ".jsp"])
+    if has_lure_ext and any(lure in path_lower for lure in lure_keywords):
+        indicators.append(_url_indicator("URL path contains common phishing-lure terminology", "low", 10))
+        score += 10
+
+    # --- Concurrent enrichment: WHOIS + VT + AbuseIPDB + page content ---
+    synthetic = f"From: test@{hostname}\n\n"
+    analyzer = EmailForensicAnalyzer(raw_text=synthetic)
+
+    # Fire all enrichment tasks concurrently
+    whois_task = analyzer.async_check_domain_reputation(hostname)
+    vt_task = async_check_url_virustotal(raw_url, vt_api_key) if vt_api_key else asyncio.sleep(0, result={})
+    page_task = async_analyze_page_content(res_url, hostname)
+
+    async def _abuse_lookup():
+        if not abuseipdb_api_key:
+            return {}
+        try:
+            ip = await asyncio.to_thread(socket.gethostbyname, hostname)
+            return await analyzer.async_check_ip_abuse(ip, abuseipdb_api_key)
+        except OSError:
+            return {}
+
+    abuse_task = _abuse_lookup()
+
+    domain_rep_raw, vt, abuse, page_indicators = await asyncio.gather(
+        whois_task, vt_task, abuse_task, page_task,
+    )
+
+    domain_info = {
+        "registrar": domain_rep_raw.get("registrar"),
+        "creation_date": domain_rep_raw.get("creation_date"),
+        "domain_age_days": domain_rep_raw.get("domain_age_days"),
+        "is_young": bool(domain_rep_raw.get("is_young"))
+    }
+    if domain_info["is_young"]:
+        indicators.append(_url_indicator("Domain was registered recently", "high", 25))
+        score += 25
+
+    score = min(score, 100)
+
+    if vt_api_key and not vt.get("error") and vt.get("is_malicious"):
+        indicators.append(_url_indicator(f"known_malicious: URL is flagged by {vt.get('detections')} VirusTotal engines", "high", 100))
+        score += 100
+
+    if abuseipdb_api_key and not abuse.get("error") and abuse.get("is_flagged"):
+        indicators.append(_url_indicator("IP address is flagged by AbuseIPDB", "high", 30))
+        score += 30
+
+    for ind in page_indicators:
+        indicators.append(ind)
+        score += ind["points"]
+
+    score = min(score, 100)
+    level = "Critical" if score >= 75 else "High" if score >= 50 else "Medium" if score >= 25 else "Low"
+    recommendation = ("Avoid visiting this URL and report it to security staff." if level in {"Critical", "High"}
+                      else "Verify the destination independently before entering data." if level == "Medium"
+                      else "No high-risk URL indicators were found; use normal caution.")
+
+    return {
+        "url": raw_url,
+        "domain": hostname,
+        "risk_score": score,
+        "threat_level": level,
+        "domain_info": domain_info,
+        "indicators": indicators,
         "recommendation": recommendation
     }

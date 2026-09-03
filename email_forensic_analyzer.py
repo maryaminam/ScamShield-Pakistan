@@ -1,11 +1,13 @@
 """Email Forensic Analyzer - header parsing, metadata extraction, routing,
 authentication, geolocation, URL/attachment scanning, and domain reputation."""
 
+import asyncio
 import email
 import email.policy
 import email.utils
 import hashlib
 import ipaddress
+import logging
 import re
 import socket
 import unicodedata
@@ -17,6 +19,8 @@ from urllib.parse import urlparse
 import dns.resolver
 import requests
 from bs4 import BeautifulSoup
+
+log = logging.getLogger(__name__)
 
 _GEOLOCATION_API = "http://ip-api.com/json/{ip}?fields=status,message,country,city,isp,as"
 _API_TIMEOUT = 5  # seconds
@@ -141,6 +145,8 @@ _WEIGHTS = {
     "abuseip_url": 20,       # AbuseIPDB flagged the IP associated with a link domain
     "url_path_brand": 25,    # URL path contains a brand keyword not matching domain
     "url_path_lure": 10,     # URL path contains phishing lure terminology
+    "attachment_brand_spoof": 20,  # attachment filename contains a brand keyword
+                                    # that doesn't match the sender domain
 }
 
 # Brand → set of legitimate sender domain suffixes. Used by detect_spoofing()
@@ -228,6 +234,19 @@ _NAME_NOISE_TOKENS = frozenset({
 # Minimum token length required for a "substring inside local-part" match.
 # Anything shorter (e.g. "li", "an") is rejected to avoid coincidental hits.
 _NAME_TOKEN_MIN_MATCH_LEN = 3
+
+
+def strip_combining_marks(text: str) -> str:
+    """Defeats combining-diacritic obfuscation (e.g. 'A\u071ffm\u071fa\u071fzon' -> 'Amazon').
+
+    Applies NFKD normalization and strips all combining characters so that
+    downstream regex/substring checks see clean ASCII-equivalent text.
+    Called once, early, at each check site — not scattered per-check.
+    """
+    if not text:
+        return ""
+    nfkd = unicodedata.normalize("NFKD", text)
+    return "".join(ch for ch in nfkd if not unicodedata.combining(ch))
 
 
 class EmailForensicAnalyzer:
@@ -639,14 +658,22 @@ class EmailForensicAnalyzer:
 
         Returns:
             A list of dicts, each containing:
-                - filename  : original filename (or "unnamed")
-                - mime_type : Content-Type (e.g. "application/pdf")
-                - size      : size in bytes
-                - md5       : MD5 hex digest
-                - sha256    : SHA-256 hex digest
-                - risky     : True if the file extension is in _RISKY_EXTENSIONS
+                - filename        : original filename (or "unnamed")
+                - mime_type       : Content-Type (e.g. "application/pdf")
+                - size            : size in bytes
+                - md5             : MD5 hex digest
+                - sha256          : SHA-256 hex digest
+                - risky           : True if the file extension is in _RISKY_EXTENSIONS
+                - brand_mismatch  : True if filename contains a brand keyword
+                                    that doesn't match the sender domain
         """
         attachments: list[dict] = []
+
+        # Extract sender domain once for brand-mismatch checks.
+        from_hdr = self.msg.get("From") or ""
+        _, addr = email.utils.parseaddr(from_hdr)
+        from_addr = addr.lower() if addr else None
+        from_domain = from_addr.split("@", 1)[1] if from_addr and "@" in from_addr else None
 
         for part in self.msg.walk():
             disposition = part.get_content_disposition()
@@ -660,13 +687,28 @@ class EmailForensicAnalyzer:
 
             ext = Path(filename).suffix.lower()
 
+            # Check for risky extension AND brand-keyword mismatch in filename.
+            normalized_filename = strip_combining_marks(filename).lower()
+            risky_ext = ext in _RISKY_EXTENSIONS
+            brand_mismatch = False
+            if from_domain and filename != "unnamed":
+                for brand, legit_domains in _BRAND_DOMAINS.items():
+                    if brand in normalized_filename:
+                        if not any(
+                            from_domain == d or from_domain.endswith("." + d)
+                            for d in legit_domains
+                        ):
+                            brand_mismatch = True
+                            break
+
             attachments.append({
                 "filename": filename,
                 "mime_type": part.get_content_type(),
                 "size": len(payload),
                 "md5": hashlib.md5(payload).hexdigest(),
                 "sha256": hashlib.sha256(payload).hexdigest(),
-                "risky": ext in _RISKY_EXTENSIONS,
+                "risky": risky_ext,
+                "brand_mismatch": brand_mismatch,
             })
 
         return attachments
@@ -1109,7 +1151,9 @@ class EmailForensicAnalyzer:
             else:
                 body = content
 
-        combined = f"{subject} {body}"
+        # Normalize once, early — strip combining marks so that combining-
+        # diacritic obfuscation can't bypass any downstream regex/keyword check.
+        combined = strip_combining_marks(f"{subject} {body}")
 
         urgency = sorted(
             {m.lower() for m in _URGENCY_PATTERNS.findall(combined)}
@@ -1245,6 +1289,17 @@ class EmailForensicAnalyzer:
             score += pts
             names = ", ".join(a["filename"] for a in risky)
             breakdown["risky_attachment"] = (pts, f"Dangerous files: {names}")
+
+        # 3b. Attachment brand-keyword mismatch
+        brand_attachments = [a for a in attachments if a.get("brand_mismatch")]
+        if brand_attachments:
+            pts = _WEIGHTS["attachment_brand_spoof"]
+            score += pts
+            names = ", ".join(a["filename"] for a in brand_attachments)
+            breakdown["attachment_brand_spoof"] = (
+                pts,
+                f"Brand keyword in attachment filename not matching sender domain: {names}",
+            )
 
         # 4. Young domain
         if domain_rep and not domain_rep.get("error") and domain_rep.get("is_young"):
@@ -1574,8 +1629,10 @@ class EmailForensicAnalyzer:
             return any(domain == d or domain.endswith("." + d) for d in allowed)
 
         # 1. Brand impersonation in display name.
+        # Normalize early — strip combining marks so combining-diacritic
+        # obfuscation (e.g. 'A\u071fmazon') can't bypass the brand keyword check.
         if display_name and from_domain:
-            dn_lower = display_name.lower()
+            dn_lower = strip_combining_marks(display_name).lower()
             for brand, legit_domains in _BRAND_DOMAINS.items():
                 if brand in dn_lower:
                     if not _suffix_match(from_domain, legit_domains):
@@ -2326,6 +2383,315 @@ class EmailForensicAnalyzer:
 <p class="subtitle" style="margin-top:12px">End of report</p>
 </body>
 </html>"""
+
+    # ==================================================================
+    # Async variants — used by the FastAPI web app for non-blocking I/O.
+    # Sync originals above are preserved for the desktop GUI path.
+    # ==================================================================
+
+    @staticmethod
+    async def async_geolocate_ip(ip: str) -> dict:
+        """Async version of geolocate_ip using httpx."""
+        import httpx
+
+        try:
+            addr = ipaddress.ip_address(ip)
+        except ValueError:
+            return {"error": f"Invalid IP address: {ip}"}
+
+        if not addr.is_global:
+            return {
+                "country": None, "city": None, "isp": None, "asn": None,
+                "note": "Internal IP - No Geolocation",
+            }
+
+        try:
+            async with httpx.AsyncClient(timeout=_API_TIMEOUT) as client:
+                resp = await client.get(_GEOLOCATION_API.format(ip=ip))
+                resp.raise_for_status()
+                data = resp.json()
+        except httpx.TimeoutException:
+            return {"error": "Geolocation request timed out"}
+        except httpx.ConnectError:
+            return {"error": "Unable to reach geolocation API"}
+        except httpx.HTTPError as exc:
+            return {"error": f"Geolocation request failed: {exc}"}
+
+        if data.get("status") == "fail":
+            return {"error": f"API error: {data.get('message', 'unknown')}"}
+
+        return {
+            "country": data.get("country"), "city": data.get("city"),
+            "isp": data.get("isp"), "asn": data.get("as"),
+        }
+
+    def _extract_sender_domain(self) -> str | None:
+        """Extract the sender domain from the From header."""
+        from_header = self.msg.get("From") or ""
+        at_pos = from_header.rfind("@")
+        if at_pos == -1:
+            return None
+        return from_header[at_pos + 1:].strip().rstrip(">").lower()
+
+    async def async_check_domain_reputation(self, domain: str | None = None) -> dict:
+        """Async WHOIS + RDAP domain reputation check."""
+        import httpx
+
+        if domain is None:
+            domain = self._extract_sender_domain()
+            if domain is None:
+                return {"domain": None, "error": "No domain in From header"}
+
+        # WHOIS is blocking — run in a thread so the event loop stays responsive.
+        creation = None
+        registrar = None
+        try:
+            creation, registrar = await asyncio.wait_for(
+                asyncio.to_thread(self._sync_whois_lookup, domain),
+                timeout=_WHOIS_TIMEOUT_SECONDS + 1,
+            )
+        except (asyncio.TimeoutError, Exception):
+            creation = None
+            registrar = None
+
+        # RDAP fallback via async httpx
+        if not creation:
+            try:
+                async with httpx.AsyncClient(timeout=_WHOIS_TIMEOUT_SECONDS) as client:
+                    rdap_resp = await client.get(f"https://rdap.org/domain/{domain}")
+                    if rdap_resp.status_code == 200:
+                        data = rdap_resp.json()
+                        for event in data.get("events", []):
+                            if event.get("eventAction") == "registration":
+                                d_str = event.get("eventDate", "").replace("Z", "+00:00")
+                                creation = datetime.fromisoformat(d_str)
+                                break
+                        for entity in data.get("entities", []):
+                            if "registrar" in entity.get("roles", []):
+                                vcard = entity.get("vcardArray", [])
+                                if len(vcard) > 1:
+                                    for prop in vcard[1]:
+                                        if prop[0] == "fn":
+                                            registrar = prop[3]
+                                            break
+            except Exception:
+                pass
+
+        if isinstance(creation, list):
+            creation = creation[0]
+
+        age_days: int | str = "unknown"
+        is_young = False
+        creation_iso: str | None = None
+
+        if isinstance(creation, datetime):
+            creation_iso = creation.isoformat()
+            age_days = (datetime.now(timezone.utc) - creation.replace(tzinfo=timezone.utc)).days
+            is_young = age_days < _YOUNG_DOMAIN_DAYS
+
+        return {
+            "domain": domain,
+            "registrar": registrar or "unknown",
+            "creation_date": creation_iso,
+            "domain_age_days": age_days,
+            "is_young": is_young,
+        }
+
+    @staticmethod
+    def _sync_whois_lookup(domain: str):
+        """Blocking WHOIS lookup, intended to run inside asyncio.to_thread."""
+        whois_module = __import__("whois")
+        original_timeout = socket.getdefaulttimeout()
+        socket.setdefaulttimeout(_WHOIS_TIMEOUT_SECONDS)
+        try:
+            w = whois_module.whois(domain)
+            return w.creation_date, w.registrar
+        finally:
+            socket.setdefaulttimeout(original_timeout)
+
+    @staticmethod
+    async def async_check_domain_virustotal(domain: str, api_key: str | None = None) -> dict:
+        """Async VirusTotal domain check using httpx."""
+        import httpx
+
+        if api_key is None:
+            return {"domain": domain, "error": "No VirusTotal API key provided"}
+        try:
+            async with httpx.AsyncClient(timeout=_API_TIMEOUT) as client:
+                resp = await client.get(
+                    _VT_DOMAIN_API.format(domain=domain),
+                    headers={"x-apikey": api_key},
+                )
+                if resp.status_code == 404:
+                    return {"domain": domain, "detections": 0, "is_malicious": False}
+                resp.raise_for_status()
+                data = resp.json().get("data", {}).get("attributes", {})
+        except httpx.HTTPError as exc:
+            return {"domain": domain, "error": f"VirusTotal request failed: {exc}"}
+
+        stats = data.get("last_analysis_stats", {})
+        detections = stats.get("malicious", 0) + stats.get("suspicious", 0)
+        return {"domain": domain, "detections": detections, "is_malicious": detections > 0}
+
+    @staticmethod
+    async def async_check_ip_abuse(ip: str, api_key: str | None = None) -> dict:
+        """Async AbuseIPDB check using httpx."""
+        import httpx
+
+        if api_key is None or not str(api_key).strip():
+            return {"ip": ip, "error": "No AbuseIPDB API key provided — skipped"}
+
+        try:
+            addr = ipaddress.ip_address(ip)
+        except ValueError:
+            return {"ip": ip, "error": f"Invalid IP address: {ip}"}
+
+        if not addr.is_global:
+            return {"ip": ip, "error": "Internal IP — not queried"}
+
+        try:
+            async with httpx.AsyncClient(timeout=_API_TIMEOUT) as client:
+                resp = await client.get(
+                    _ABUSEIPDB_API,
+                    headers={"Key": api_key, "Accept": "application/json"},
+                    params={"ipAddress": ip, "maxAgeInDays": 90},
+                )
+                resp.raise_for_status()
+                data = resp.json().get("data", {})
+        except httpx.TimeoutException:
+            return {"ip": ip, "error": "AbuseIPDB request timed out"}
+        except httpx.ConnectError:
+            return {"ip": ip, "error": "Unable to reach AbuseIPDB"}
+        except httpx.HTTPStatusError as exc:
+            status = exc.response.status_code
+            if status in (401, 403):
+                return {
+                    "ip": ip,
+                    "error": "AbuseIPDB API key is missing, invalid, or expired. Update ABUSEIPDB_API in .env and restart the app.",
+                }
+            return {"ip": ip, "error": f"AbuseIPDB request failed: {exc}"}
+        except httpx.HTTPError as exc:
+            return {"ip": ip, "error": f"AbuseIPDB request failed: {exc}"}
+
+        score = data.get("abuseConfidenceScore", 0)
+        return {
+            "ip": ip, "abuse_score": score,
+            "total_reports": data.get("totalReports", 0),
+            "country_code": data.get("countryCode"),
+            "isp": data.get("isp"), "is_flagged": score >= 25,
+        }
+
+    async def async_validate_dns_records(self, domain: str | None = None) -> dict:
+        """Async DNS record validation using aiodns."""
+        import aiodns
+
+        if domain is None:
+            domain = self._extract_sender_domain()
+            if domain is None:
+                return {"domain": None, "error": "No domain in From header"}
+
+        resolver = aiodns.DNSResolver(timeout=_DNS_TIMEOUT)
+
+        async def _async_query_txt(name: str) -> list[str]:
+            try:
+                result = await asyncio.wait_for(
+                    resolver.query(name, "TXT"),
+                    timeout=_DNS_TIMEOUT + 0.5,
+                )
+                return [r.text.decode("utf-8", errors="replace").strip('"') for r in result]
+            except (aiodns.error.DNSError, asyncio.TimeoutError, OSError, Exception):
+                return []
+
+        selectors = ("default", "google", "selector1", "selector2",
+                     "s1", "s2", "k1", "dkim", "mail")
+        query_names = [domain, f"_dmarc.{domain}"] + [
+            f"{selector}._domainkey.{domain}" for selector in selectors
+        ]
+
+        # Fire all DNS queries concurrently — aiodns makes this cheap.
+        results = await asyncio.gather(
+            *[_async_query_txt(name) for name in query_names]
+        )
+        records = dict(zip(query_names, results))
+
+        spf_record = next((txt for txt in records.get(domain, []) if txt.startswith("v=spf1")), None)
+        dmarc_record = next(iter(records.get(f"_dmarc.{domain}", [])), None)
+        dkim_record = None
+        for selector in selectors:
+            selector_records = records.get(f"{selector}._domainkey.{domain}", [])
+            dkim_record = next((txt for txt in selector_records if "v=DKIM1" in txt), None)
+            if dkim_record:
+                break
+
+        return {
+            "domain": domain,
+            "spf": {"record": spf_record, "exists": spf_record is not None},
+            "dkim": {"record": dkim_record, "exists": dkim_record is not None},
+            "dmarc": {"record": dmarc_record, "exists": dmarc_record is not None},
+        }
+
+    async def async_check_url_domain_reputation(
+        self,
+        urls: list[dict] | None = None,
+        max_domains: int = 3,
+        vt_api_key: str | None = None,
+        abuse_api_key: str | None = None,
+    ) -> list[dict]:
+        """Async WHOIS/VT/AbuseIPDB lookup for URL domains, all concurrent."""
+        if urls is None:
+            urls = self.extract_urls()
+
+        sender_domain = self._extract_sender_domain()
+
+        seen: set[str] = set()
+        domains_to_check: list[str] = []
+        for u in urls:
+            domain = (u.get("domain") or "").lower()
+            if not domain or domain == sender_domain or domain in seen:
+                continue
+            seen.add(domain)
+            domains_to_check.append(domain)
+            if len(domains_to_check) >= max_domains:
+                break
+
+        async def _check_one_domain(domain: str) -> dict:
+            """Run WHOIS + VT + AbuseIPDB for a single domain concurrently."""
+            import httpx
+
+            # Fire all three lookups concurrently per domain
+            whois_task = self.async_check_domain_reputation(domain)
+            vt_task = self.async_check_domain_virustotal(domain, vt_api_key) if vt_api_key else asyncio.sleep(0, result={})
+
+            async def _abuse_for_domain():
+                if not abuse_api_key:
+                    return {}
+                try:
+                    ip = await asyncio.to_thread(socket.gethostbyname, domain)
+                    return await self.async_check_ip_abuse(ip, abuse_api_key)
+                except OSError:
+                    return {}
+
+            abuse_task = _abuse_for_domain()
+
+            rep, vt, abuse = await asyncio.gather(whois_task, vt_task, abuse_task)
+
+            result_dict = {
+                "domain": rep.get("domain", domain),
+                "registrar": rep.get("registrar"),
+                "domain_age_days": rep.get("domain_age_days"),
+                "is_young": bool(rep.get("is_young")),
+                "error": rep.get("error"),
+            }
+            if vt_api_key and not vt.get("error"):
+                result_dict["vt_malicious"] = vt.get("is_malicious", False)
+            if abuse_api_key and not abuse.get("error"):
+                result_dict["abuse_flagged"] = abuse.get("is_flagged", False)
+            return result_dict
+
+        # All domains checked concurrently
+        return list(await asyncio.gather(
+            *[_check_one_domain(d) for d in domains_to_check]
+        ))
 
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ SDK never prevents the rest of the application from starting.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import logging
@@ -334,6 +335,66 @@ def generate_explanation(
     if gemini_api_key:
         try:
             raw = _call_gemini(user_prompt, gemini_api_key)
+            explanation = _parse_llm_response(raw)
+            explanation["provider"] = "gemini"
+            _cache[cache_key] = explanation
+            return explanation
+        except json.JSONDecodeError:
+            log.warning("Gemini returned non-JSON output; falling through to fallback.")
+        except Exception as exc:
+            log.warning("Gemini call failed (%s); falling through to fallback.", exc)
+
+    # ── Deterministic fallback ──────────────────────────────────
+    fallback = _build_fallback(analysis_result)
+    _cache[cache_key] = fallback
+    return fallback
+
+
+# ── Async entry point ─────────────────────────────────────────────
+
+async def async_generate_explanation(
+    analysis_result: dict,
+    *,
+    groq_api_key: str | None = None,
+    gemini_api_key: str | None = None,
+) -> dict:
+    """Async version of generate_explanation.
+
+    The blocking Groq/Gemini SDK calls are offloaded to threads via
+    asyncio.to_thread so the event loop is never blocked.
+    """
+    trimmed = _build_trimmed_input(analysis_result)
+    cache_key = hashlib.sha256(
+        json.dumps(trimmed, sort_keys=True, default=str).encode()
+    ).hexdigest()
+
+    if cache_key in _cache:
+        return _cache[cache_key]
+
+    user_prompt = (
+        "Here are the pre-computed security findings:\n"
+        + json.dumps(trimmed, indent=2, default=str)
+        + "\n\n"
+        + _OUTPUT_SCHEMA_INSTRUCTION
+    )
+
+    # ── Try Groq (blocking SDK → thread) ───────────────────────
+    if groq_api_key:
+        try:
+            raw = await asyncio.to_thread(_call_groq, user_prompt, groq_api_key)
+            explanation = _parse_llm_response(raw)
+            explanation["provider"] = "groq"
+            _cache[cache_key] = explanation
+            return explanation
+        except json.JSONDecodeError:
+            log.warning("Groq returned non-JSON output; falling through to Gemini.")
+        except Exception as exc:
+            log.warning("Groq call failed (%s); falling through to Gemini.", exc)
+
+    # ── Try Gemini (blocking SDK → thread) ──────────────────────
+    if gemini_api_key:
+        try:
+            raw = await asyncio.to_thread(_call_gemini, user_prompt, gemini_api_key)
             explanation = _parse_llm_response(raw)
             explanation["provider"] = "gemini"
             _cache[cache_key] = explanation
