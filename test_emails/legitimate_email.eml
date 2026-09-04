@@ -1,0 +1,475 @@
+Original message
+Message ID	<d5cc79dd-8f5b-4e2e-b141-55f4abdab30e@mtasv.net>
+Created on:	3 September 2026 at 22:04 (Delivered after 0 seconds)
+From:	Data Science Dojo Hiring Team <support@hackerrankforwork.com>
+To:	maryaminam4113@gmail.com
+Subject:	Assessment Invitation - Data Science Dojo
+SPF:	PASS with IP 50.31.156.126 Learn more
+DKIM:	'PASS' with domain hackerrankforwork.com Learn more
+DMARC:	'PASS' Learn more
+
+
+Download original	Copy to clipboard	
+Delivered-To: maryaminam4113@gmail.com
+Received: by 2002:a05:6674:7b1c:b0:74f:e7c3:53f7 with SMTP id zi28csp6381107pxc; Thu, 3 Sep 2026 10:04:30 -0700 (PDT)
+X-Received: by 2002:a05:6820:818b:b0:6b1:6f3d:2068 with SMTP id 006d021491bc7-6b6fb6d1f31mr98000eaf.12.1788455069880; Thu, 03 Sep 2026 10:04:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1788455069; cv=none; d=google.com; s=arc-20260327; b=DK4mHwjWOxeaWlg3cZYKIc99VcB+ijmrSy8lWZtqliJMVX6ripX+hc6daYpkoMqEI2 +zm5fAt6Qq33IvzO8n73r3JxUkd+nTP8MOi0BAmGHu3rVWZq44uQRuKI9q5WHoOwHT4s 1xpJM3c/2pU9eZ/l8c5wNr9Q3vEfggwT1ukDsB6TzFliRu9Qk7xSIgNybV8SKSbiHUZ2 yKVo4R+xLyzg+UndnUvb50Oh0Y/DAH+WM/b2hZa4TJiBx6onLQcKt2/D5N7xUzoghkPu tpiEV2IE6/l8Kqb9yXkvdcxDmDJnb+tWmTxcDrUCuJ9FRS0Ey13xRpzYYi6zUXgY8K5O zR7g==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327; h=mime-version:feedback-id:to:reply-to:message-id:subject:date:from :dkim-signature:dkim-signature; bh=BNXXDNBYavbHwN4A7KXAOEOnviJncLUDUL1arDanCLg=; fh=iKcVxDQgrICWtHfG2Te3E+KlgHzDjv728WL7DhRN8i8=; b=q5NzJLaO9QYKkNeryrldb8QfIhEKyDUUBJCKWEPaNOmgAzj0Sws0U4ELLjDD/5QMfk j5o9h9VvtPjNNVTPUyqgGKfxxX86HImPvU9EkFLjmyrC3fxXLG8m2DX0SLdYI38mDmnk Abp926LhYsqtmwjl5OS9AzdXLDG7NJylRWZq8dBaJPASzQiTfFSEhPGTx6v0SgEzrKi0 LNQI6jgSI2MftBAgzlmUr4FMsZDMclgZaUNrFzITnulOo0bnjJO/2Hc3F0PNrfNtIPrq kzvsummfCHXfFQm/srzyROIUEJykYNYN2qOSDqSYR9tHkNPyAdShCyF99NCvYb52wyj3 ICCw==; dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com; dkim=pass header.i=@pm.mtasv.net header.s=pm20250806 header.b=Y6ZyxQHJ; dkim=pass header.i=@hackerrankforwork.com header.s=20150120130737.pm header.b=Cqcu6z7B; spf=pass (google.com: domain of pm_bounces@pm-bounces.hackerrankforwork.com designates 50.31.156.126 as permitted sender) smtp.mailfrom=pm_bounces@pm-bounces.hackerrankforwork.com; dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=hackerrankforwork.com
+Return-Path: <pm_bounces@pm-bounces.hackerrankforwork.com>
+Received: from sc-ord-mta126.mtasv.net (sc-ord-mta126.mtasv.net. [50.31.156.126]) by mx.google.com with ESMTPS id 586e51a60fabf-475554fa5b7si62048fac.173.2026.09.03.10.04.29 for <maryaminam4113@gmail.com> (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256); Thu, 03 Sep 2026 10:04:29 -0700 (PDT)
+Received-SPF: pass (google.com: domain of pm_bounces@pm-bounces.hackerrankforwork.com designates 50.31.156.126 as permitted sender) client-ip=50.31.156.126;
+Authentication-Results: mx.google.com; dkim=pass header.i=@pm.mtasv.net header.s=pm20250806 header.b=Y6ZyxQHJ; dkim=pass header.i=@hackerrankforwork.com header.s=20150120130737.pm header.b=Cqcu6z7B; spf=pass (google.com: domain of pm_bounces@pm-bounces.hackerrankforwork.com designates 50.31.156.126 as permitted sender) smtp.mailfrom=pm_bounces@pm-bounces.hackerrankforwork.com; dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=hackerrankforwork.com
+X-KumoRef: eyJfQF8iOiJcXF8vIiwicmVjaXBpZW50IjoibWFyeWFtaW5hbTQxMTNAZ21haWwuY29tIn0=
+DKIM-Signature: v=1; a=rsa-sha256; d=pm.mtasv.net; s=pm20250806; c=relaxed/relaxed; bh=BNXXDNBYavbHwN4A7KXAOEOnviJncLUDUL1arDanCLg=; h=from:to:subject:date:mime-version:content-type:sender:cc:date:message-id; t=1788455069; x=1789059869; b=Y6ZyxQHJQYvDaf3nMc2+RlB+gIDpR1WXCuqxxcmavLgGtxlRDfzDZiXWJKCvJdAbOcOWhjwDu FIQXH+vj7pGv0RtAmQWkgi/iAdpI9XxR1CUXcUmmT39kk9F8e2JQ3LsdYYWd3DOAzLzeY6lj0BY 4bjEV7GmltQVHt2PeMA7dQ38kCvOJZoGVDaG0gt8UTc6ClCwaUDbILzrubgGG7YpLW6PcpiZ/AI 7fsdBYjbH/ePFUaxTB3uMDY89b1uV1177Ymo6/VJC7MUtHu9RphZ/SYoGRAGnS8mScdyYbCT8HA JRV0fCc1IbbwAMLKNG5y2XOSwxLa9Ad1FnRzd2Csqtyw==;
+Received: from ip-172-26-13-56.us-east-2.compute.internal (172.26.13.56) by production-pmta-useast2.internal.postmarkapp.com (KumoMTA 10.97.243.94) with ESMTP id 86bd7c6fa7b911f1a459022ee233d1cd for <maryaminam4113@gmail.com>; Thu, 3 Sep 2026 17:04:29 +0000
+DKIM-Signature: v=1; a=rsa-sha256; d=hackerrankforwork.com; s=20150120130737.pm; c=relaxed/relaxed; i=support@hackerrankforwork.com; t=1788455069; x=1788627869; h=date:date:from:from:message-id:reply-to:reply-to:sender:subject:subject:to: to:cc:feedback-id:mime-version:content-type; bh=BNXXDNBYavbHwN4A7KXAOEOnviJncLUDUL1arDanCLg=; b=Cqcu6z7BL+6VB+DP7YPAj7e7A7RMIB2jk1dVtudKwJt7V/npBMEymIWrjIALU16bXeS/E6H9scR u9RnrxSkMfyMAqQx/7kADz21Efrxw3BkCNSxW91BmvTOLKIvJVZqBRlhbLDC5osZlnpP2Avlad3Gp 1fNYME4udTKRvOOR/pk=
+From: Data Science Dojo
+  Hiring Team <support@hackerrankforwork.com>
+Date: Thu, 03 Sep 2026 17:04:29 +0000
+Subject: Assessment Invitation - Data Science Dojo
+Message-Id: <d5cc79dd-8f5b-4e2e-b141-55f4abdab30e@mtasv.net>
+Reply-To: careers@datasciencedojo.com
+To: maryaminam4113@gmail.com
+Feedback-ID: s538384-aHJ3LXRlc3QtaW52aXRl:s538384:a24280:postmark
+X-Complaints-To: abuse@postmarkapp.com
+X-Job: 24280_538384
+X-PM-Message-Id: d5cc79dd-8f5b-4e2e-b141-55f4abdab30e
+X-PM-Tag: hrw-test-invite
+X-PM-RCPT: |bTB8MjQyODB8NTM4Mzg0fG1hcnlhbWluYW00MTEzQGdtYWlsLmNvbQ==|
+X-PM-Message-Options: v1;1.kOppthihIg1hOFlESLP6dQ.hqqAQ5UNWW12jEZo3oxJ8pQBN3Ojz_pMDd2CNA5IOimnOilTzCab43mm-JWOzPbi3Bu2g_csU44A_Qvb1SqDVzk381-Ct3jm7GWHTbIUSUy5oTGBeJIv396loboF2agSM645UMWX_ntua9nJJoEi34214StT5erLjXa17nSztw-ocPFqzgraU2mh5zNe4N-t
+MIME-Version: 1.0
+X-virtual-MTA: ord-50-31-156-126
+X-PM-MTA-Pool: transactional-1
+Content-Type: multipart/alternative; boundary=mk3-31df556924ac4ca3b9de45482de56366; charset=UTF-8
+
+--mk3-31df556924ac4ca3b9de45482de56366
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+Data Science Dojo - Software Engineer (Security & Compliance) - powered by =
+HackerRank
+
+
+
+ =20
+   =20
+     =20
+       =20
+       =20
+          Dear Ms. Inam,
+
+=C2=A0
+
+I hope this email finds you well. Thank you for your interest in the positi=
+on of Associate Software Engineer - Security &amp; Compliance=C2=A0at Data =
+Science Dojo. As the next step in our recruitment process, you have been in=
+vited to attempt our test.
+
+=C2=A0
+
+You are requested to follow the following To-Do list for the test to go smo=
+othly:
+
+=C2=A0
+
+1. Once you start the assessment, you must complete it in a single attempt.=
+ There will be no option to pause or resume later, so please ensure that yo=
+u have sufficient time available before beginning.
+2. This is a proctored assessment as your screen activity and webcam may be=
+ monitored. Any suspicious behavior, including switching tabs or copy-pasti=
+ng, taking external help and etc.=C2=A0will be considered plagiarism and ma=
+y result in disqualification.
+3. Please use a desktop or laptop computer, along with Google Chrome (Brows=
+er) and a stable internet connection for optimal performance.
+
+=C2=A0
+
+If you have any questions or encounter any issues during the assessment, pl=
+ease don't hesitate to reach out to us for assistance.
+
+=C2=A0
+
+Regards,
+
+Human Resources
+Data Science Dojo
+
+       =20
+       =20
+     =20
+
+     =20
+
+     =20
+       =20
+         =20
+         =20
+         =20
+           =20
+              Duration: 75 min=20
+           =20
+           =20
+         =20
+         =20
+         =20
+         =20
+          End Login Date/Time: 8 Sep 2026 10:02 AM PDT
+           =20
+            (America - Los Angeles)
+           =20
+         =20
+         =20
+         =20
+            Start Test
+         =20
+          You can also use this
+          test link
+          to access the test
+         =20
+          anytime before the test expiry date above.
+          Please check date and time in your time zone.
+         =20
+         =20
+       =20
+     =20
+   =20
+ =20
+
+
+
+Please note once you begin the test the timer will start and the test canno=
+t be paused. Hence it is highly recommended that you complete the test in o=
+ne sitting.
+
+In case of power failure or loss of internet connection, the test timer wil=
+l continue to run even though you might not be attempting it, in such a cas=
+e please contact us by replying back to this email.
+
+For any technical queries, please refer to https://track.pstmrk.it/3ts/cand=
+idatesupport.hackerrank.com%2Fhc%2Fen-us%2Fcategories%2F4402828710675-FAQ/E=
+DcI/AdHHAQ/AQ/d5cc79dd-8f5b-4e2e-b141-55f4abdab30e/3/dYRAFc5U-e or contact =
+us at https://track.pstmrk.it/3ts/customersupport.hackerrank.com%2Fhc%2Fen-=
+us%2Frequests%2Fnew%3Fticket_form_id%3D360001035834./EDcI/AdHHAQ/AQ/d5cc79d=
+d-8f5b-4e2e-b141-55f4abdab30e/5/q8t_qJvuzW
+
+HackerRank only provides a platform to conduct the tests. It does not sched=
+ule or evaluate any hiring tests or conduct interviews for any company. Hen=
+ce for any of the above requests please contact the company that sent you t=
+he invite.
+
+--mk3-31df556924ac4ca3b9de45482de56366
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<html>
+<head>
+  <meta name=3D"viewport" content=3D"width=3Ddevice-width" />
+  <meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3DUTF-8" =
+/>
+  <title>Test Invite Email</title>
+</head>
+
+<body style=3D"-webkit-font-smoothing: antialiased; -webkit-text-size-adjus=
+t: none; box-sizing: border-box; font-family: 'Avenir', 'Segoe UI', 'Ubuntu=
+', 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14px; height:=
+ 100%; line-height: 1.6; margin: 0; padding: 0; width: 100% !important">
+  <style type=3D"text/css">
+  body {
+    -webkit-font-smoothing: antialiased;
+    -webkit-text-size-adjust: none;
+    width: 100% !important;
+    height: 100%;
+  }
+  .ckeditor-footer-div {
+    width:inherit;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+
+  @media only screen and (max-width: 640px) {
+    h1 {
+      font-weight: 600 !important;
+      margin: 20px 0 5px !important;
+    }
+    h2 {
+      font-weight: 600 !important;
+      margin: 20px 0 5px !important;
+    }
+    h3 {
+      font-weight: 600 !important;
+      margin: 20px 0 5px !important;
+    }
+    h4 {
+      font-weight: 600 !important;
+      margin: 20px 0 5px !important;
+    }
+    h1 {
+      font-size: 22px !important;
+    }
+    h2 {
+      font-size: 18px !important;
+    }
+    h3 {
+      font-size: 16px !important;
+    }
+    .container {
+      width: 100% !important;
+    }
+    .content {
+      padding: 20px !important;
+    }
+    .content-wrap {
+      padding: 10px !important;
+    }
+    .invoice {
+      width: 100% !important;
+    }
+  }
+  </style>
+  <!-- <div style=3D"padding: 8px; background-color: #DDEEF6;"> -->
+  <table role=3D"presentation" class=3D"body-wrap" style=3D"box-sizing: bor=
+der-box; font-family: 'Avenir', 'Segoe UI', 'Ubuntu', 'Helvetica Neue', Hel=
+vetica, Arial, sans-serif; font-size: 14px; padding: 0; width: 100%" bgcolo=
+r=3D"#ffffff">
+    <tr style=3D"box-sizing: border-box; font-family: 'Avenir', 'Segoe UI',=
+ 'Ubuntu', 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14px;=
+ margin: 0; padding: 0">
+      <td style=3D"box-sizing: border-box; font-family: 'Avenir', 'Segoe UI=
+', 'Ubuntu', 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14p=
+x; margin: 0; padding: 0; vertical-align: top" valign=3D"top"></td>
+      <td style=3D"max-width: 1280px; width:100%; box-sizing: border-box; c=
+lear: both !important; display: block !important; font-family: 'Avenir', 'S=
+egoe UI', 'Ubuntu', 'Helvetica Neue', Helvetica, Arial, sans-serif; font-si=
+ze: 14px; margin: 0 auto; padding: 0; vertical-align: top" valign=3D"top">
+        <div class=3D"uneditable-div" style=3D"background-color: #e6e9ec;pa=
+dding-left:5%; padding-right: 5%; padding-top: 2.5%; padding-bottom: 2.5%; =
+box-sizing: border-box; display: block; font-family: 'Avenir', 'Segoe UI', =
+'Ubuntu', 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14px; =
+margin: 0 auto;">
+          <table role=3D"presentation" class=3D"main" width=3D"100%" cellpa=
+dding=3D"0" cellspacing=3D"0" style=3D"box-sizing: border-box; font-family:=
+ 'Avenir', 'Segoe UI', 'Ubuntu', 'Helvetica Neue', Helvetica, Arial, sans-s=
+erif; font-size: 14px; margin: 0 auto; padding: 0; background: #ffffff;">
+            <tr style=3D"box-sizing: border-box; font-family: 'Avenir', 'Se=
+goe UI', 'Ubuntu', 'Helvetica Neue', Helvetica, Arial, sans-serif; font-siz=
+e: 14px; margin: 0; padding: 0">
+              <td style=3D"box-sizing: border-box; font-family: 'Avenir', '=
+Segoe UI', 'Ubuntu', 'Helvetica Neue', Helvetica, Arial, sans-serif; font-s=
+ize: 14px; margin: 0; vertical-align: top" valign=3D"top">
+                <table role=3D"presentation" class=3D"email-title"  width=
+=3D"100%" cellpadding=3D"0" cellspacing=3D"0" style=3D"box-sizing: border-b=
+ox; font-family: 'Avenir', 'Segoe UI', 'Ubuntu', 'Helvetica Neue', Helvetic=
+a, Arial, sans-serif; font-size: 14px; margin: 0; padding: 0;border-bottom:=
+1px solid #E2E8E4;">
+                  <tr style=3D"box-sizing: border-box; font-family: 'Avenir=
+', 'Segoe UI', 'Ubuntu', 'Helvetica Neue', Helvetica, Arial, sans-serif; fo=
+nt-size: 14px; margin: 0; padding: 0">
+                    <td class=3D"content-block padding-title" style=3D "bac=
+kground-color: #ffffff; box-sizing: border-box; color: #ffffff; font-family=
+: 'Avenir', 'Segoe UI', 'Ubuntu', 'Helvetica Neue', Helvetica, Arial, sans-=
+serif; font-size: 14px; margin: 0; vertical-align: top;" valign=3D"top">
+                      <div style=3D"padding: 8px; margin: 0px 0px 8px 0px;"=
+>
+                        <div style=3D"color: #39424e;font-size: 30px; font-=
+weight: 700; line-height: 40px; max-width: 99%; overflow: hidden; text-over=
+flow: ellipsis; padding: 20px 20px 12px 20px;  align-items: center;">
+                          <div style=3D"">
+                            <h1 style=3D"font-size: 30px; color: #39424e;">
+                              Data Science Dojo - Software Engineer (Securi=
+ty &amp; Compliance)
+                            </h1>=20
+                          </div>
+                            <div style=3D"color: #576871; font-size: 15px; =
+font-weight: 400">
+                              Powered by HackerRank
+                            </div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+                <table role=3D"presentation" width=3D"100%" cellpadding=3D"=
+0" cellspacing=3D"0" style=3D"padding: 0; font-family: 'Avenir', 'Segoe UI'=
+, 'Ubuntu', 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14px=
+; margin: 0;" bgcolor=3D"#ffffff">
+                  <tr style=3D"box-sizing: border-box; font-family: 'Avenir=
+', 'Segoe UI', 'Ubuntu', 'Helvetica Neue', Helvetica, Arial, sans-serif; fo=
+nt-size: 14px; margin: 0; padding: 0">
+                    <td class=3D"content-block" style=3D"box-sizing: border=
+-box; font-family: 'Avenir', 'Segoe UI', 'Ubuntu', 'Helvetica Neue', Helvet=
+ica, Arial, sans-serif; font-size: 14px; margin: 0; padding: 0; vertical-al=
+ign: top" valign=3D"top">
+                     =20
+<table role=3D"presentation" width=3D"100%" cellpadding=3D"0" cellspacing=
+=3D"0" style=3D"border-left-color: #e9e9e9; border-left-width: 1px; border-=
+right-color: #e9e9e9;
+      border-right-width: 1px; box-sizing: border-box; font-family: \'Aveni=
+r\', \'Segoe UI\', \'Ubuntu\',\'Helvetica Neue\', \'Helvetica\', Arial, san=
+s-serif; font-size: 14px; margin: 0; padding: 20px;" bgcolor=3D"#ffffff" ;>
+  <tr style=3D"box-sizing: border-box; font-family: \'Avenir\', \'Segoe UI\=
+', \'Ubuntu\',\'Helvetica Neue\', \'Helvetica\', Arial, sans-serif; font-si=
+ze: 14px; margin: 0; padding: 0">
+    <td style=3D"box-sizing: border-box; font-family: \'Avenir\', \'Segoe U=
+I\', \'Ubuntu\',\'Helvetica Neue\', \'Helvetica\', Helvetica, Arial, sans-s=
+erif; font-size: 14px; margin: 0; vertical-align: top" valign=3D"top">
+      <div style=3D"color: #000000; font-weight: 300">
+       =20
+        <div style=3D"margin-bottom:10px; font-size: 15px; padding:12px 30p=
+x 0px 30px;">
+          <p>Dear Ms. Inam,</p>
+
+<p>&nbsp;</p>
+
+<p>I hope this email finds you well. Thank you for your interest in the pos=
+ition of Associate Software Engineer - Security &amp; Compliance&nbsp;at Da=
+ta Science Dojo. As the next step in our recruitment process, you have been=
+ invited to attempt our test.</p>
+
+<p>&nbsp;</p>
+
+<p>You are requested to follow the following To-Do list for the test to go =
+smoothly:</p>
+
+<p>&nbsp;</p>
+
+<p>1. Once you start the assessment, you must complete it in a <strong>sing=
+le attempt</strong>. There will be no option to pause or resume later, so p=
+lease ensure that you have sufficient time available before beginning.<br /=
+>
+2. This is a <strong>proctored assessment</strong> as your screen activity =
+and webcam may be monitored. Any suspicious behavior, including <strong>swi=
+tching tabs or copy-pasting, taking external help</strong> and etc.&nbsp;wi=
+ll be considered <strong>plagiarism</strong> and may result in <strong>disq=
+ualification</strong>.<br />
+3. Please use a desktop or laptop computer, along with Google Chrome (Brows=
+er) and a stable internet connection for optimal performance.</p>
+
+<p>&nbsp;</p>
+
+<p>If you have any questions or encounter any issues during the assessment,=
+ please don&#39;t hesitate to reach out to us for assistance.</p>
+
+<p>&nbsp;</p>
+
+<p>Regards,</p>
+
+<p>Human Resources<br />
+Data Science Dojo</p>
+
+        </div>
+       =20
+      </div>
+
+     =20
+
+      <div style=3D"text-align:center; padding: 12px 20px 0 20px; border-to=
+p: 1px solid #EBEBF3; background-color:white; ">
+        <div style=3D"font-size: 14px;font-weight:400;font-family: satoshi,=
+arial,helvetica,sans-serif;
+        color: #121418">
+         =20
+         =20
+         =20
+            <div>
+              Duration: <span style=3D"color: #121418; font-weight:500;">75=
+ min </span>
+            </span>
+            </div>
+         =20
+         =20
+         =20
+         =20
+          End Login Date/Time: <a href=3D"https://track.pstmrk.it/3/www.tim=
+eanddate.com%2Fworldclock%2Ffixedtime.html%3Fiso%3D2026-09-08T17%3A02%3A00/=
+EDcI/AdHHAQ/AQ/d5cc79dd-8f5b-4e2e-b141-55f4abdab30e/1/7f2-IWjkjp" target=3D=
+"_blank" style=3D"color: #005cc8;">8 Sep 2026 10:02 AM PDT
+           =20
+            (America - Los Angeles)
+           =20
+          </a><br />
+         =20
+          <div style=3D"padding:15px 0px;text-align:center;">
+            <a href=3D"https://track.pstmrk.it/3s/www.hackerrank.com%2Ftest=
+s%2F8l6olt6crlo%2Flogin%3Fb%3DeyJ1c2VybmFtZSI6Im1hcnlhbWluYW00MTEzQGdtYWlsL=
+mNvbSIsInBhc3N3b3JkIjoiZjI4NWU4YWYiLCJoaWRlIjp0cnVlLCJhY2NvbW1vZGF0aW9ucyI6=
+eyJhZGRpdGlvbmFsX3RpbWVfcGVyY2VudCI6MH19/EDcI/AdHHAQ/AQ/d5cc79dd-8f5b-4e2e-=
+b141-55f4abdab30e/2/ImcEq9VGr8" style=3D"box-shadow:none; background: #0689=
+32; border-color: #068932; border-style: solid; border-width: 14px 20px; bo=
+x-sizing: border-box; color: #ffffff; display: inline-block; font-family: s=
+atoshi,arial,helvetica,sans-serif; font-size: 16px; font-weight: bold; marg=
+in: 0; padding: 0; text-align: center; text-decoration: none; text-transfor=
+m: capitalize; width:200px; height:50px; border-radius:8px" target=3D"_blan=
+k" data-event-category=3D"Candidate Invitations Management" data-event-acti=
+on=3D"Click" data-event-label=3D"Button - Start test">Start Test</a>
+          </div>
+          You can also use this
+          <a style=3D"color: #005cc8;" data-pm-no-track href=3D"https://www=
+.hackerrank.com/tests/8l6olt6crlo/login?b=3DeyJ1c2VybmFtZSI6Im1hcnlhbWluYW0=
+0MTEzQGdtYWlsLmNvbSIsInBhc3N3b3JkIjoiZjI4NWU4YWYiLCJoaWRlIjp0cnVlLCJhY2NvbW=
+1vZGF0aW9ucyI6eyJhZGRpdGlvbmFsX3RpbWVfcGVyY2VudCI6MH19" target=3D"_blank" d=
+ata-event-category=3D"Candidate Invitations Management" data-event-action=
+=3D"Click" data-event-label=3D"Link - Start test">test link</a>
+          to access the test
+         =20
+          anytime before the test expiry date above.
+          Please check date and time in your time zone.
+         =20
+         =20
+        </div>
+      </div>
+    </td>
+  </tr>
+</table>
+
+                    </td>
+                  </tr>
+                </table>
+                <table role=3D"presentation" class=3D"faq-table" style=3D"w=
+idth:100%; background: #f8f8f9; border-top: 1px solid #f3eeee; margin-top: =
+10px;">
+                    <tr>
+                      <td>
+                        <div class=3D"faq" style=3D"font-size:14px;font-wei=
+ght:400;font-style:normal;font-stretch:normal;line-height:1.54;letter-spaci=
+ng:normal;text-align:left;color:#000000;padding:14px 30px 25px 30px;font-fa=
+mily: satoshi,arial,helvetica,sans-serif; background-color:#ffffff;">
+                          For any technical queries, please refer to <a hre=
+f=3D"https://track.pstmrk.it/3s/candidatesupport.hackerrank.com%2Fhc%2Fen-u=
+s%2Fcategories%2F4402828710675-FAQ/EDcI/AdHHAQ/AQ/d5cc79dd-8f5b-4e2e-b141-5=
+5f4abdab30e/3/dYRAFc5U-e" aria-label=3D"Support, Submit a request - HackerR=
+ank Candidates" target=3D"_blank" style=3D"color: #005cc8;" data-event-cate=
+gory=3D"Candidate Invitations Management" data-event-action=3D"Click" data-=
+event-label=3D"Link - FAQ">FAQ</a> or contact <a href=3D"https://track.pstm=
+rk.it/3s/portal.usepylon.com%2Fhackerrank-candidates%2Fforms%2Fcandidate-re=
+quest-form/EDcI/AdHHAQ/AQ/d5cc79dd-8f5b-4e2e-b141-55f4abdab30e/4/jH1yDAZRoj=
+" target=3D"_blank" style=3D"color: #005cc8;" data-event-category=3D"Candid=
+ate New Issue" data-event-action=3D"Click" data-event-label=3D"New Candidat=
+e Ticket">support</a>. For other inquiries please reply to this email to co=
+ntact the individual who sent you the invitation.
+                        </div>
+                      </td>
+                    </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </div>
+      </td>
+    </tr>
+  </table>
+<img src=3D"https://ea.pstmrk.it/open?m=3Dv3_1.E71VYBG0YUxVt3dRHHwsSw.cnitd=
+r-Q3hEjVsBS_AXcqb7esovqn5o8dN04xYxwfx2q9W4vUWH3iRkUs5zsUlNRziGdsRWdcdaissGh=
+p_f0Ot9rXT3dN61opqbwHlZSusQEZM0qOMtg6kl6Ps8QvWbwJOPqPhIJBeN7qXg_9wRhxCRsm9t=
+OR61Wl5tm0j4XI4MJUXXhDQMmP7luOMQVUOGWK-QmSSAHjrcmSBkTIXi_AjNQb9Wo_3uWrFoQMk=
+BhSNlEeP1mUe40HK3Kbe2fx1MKWGrQhR1rxPUeCvR4kZI69uQG1hnUhGX-_GRI0YaZ9fjFBSvlr=
+jUG2mwFUmwJoDw0C8kq1naUPEfC3igZKcaMPsji6clPmjZx6tUzWyTuWFNUBVzU-SFVOjAFtLlw=
+Zm1tA3I4t67bxQXYTu-1SWA56isRYhXqHoEoGUx5DF6u2Yx8j6S-CTyEdP9nny8WrKCrC_88eJZ=
+HHtwnaZ_5mfsdvZ4QIxL8nBzBzoCVlJdCcY0AYgqXlQaq8TiJvFF-sxi2yl-D_P8ROc40ciHq3d=
+UK2j-qJUzFQPgVldUW6lIlBMwNraQpYBrB3yQegN88Yaqr" width=3D"1" height=3D"1" bo=
+rder=3D"0" alt=3D"" /></body>
+
+</html>
+
+--mk3-31df556924ac4ca3b9de45482de56366--

@@ -5,7 +5,7 @@ techniques (emotional pressure, false authority, social engineering) that
 bypass static regex pattern lists.
 
 Uses HuggingFace ``transformers`` zero-shot classification pipeline backed
-by a DeBERTa-v3 NLI model fine-tuned on MNLI + FEVER + ANLI.  The model
+by a DistilBERT-MNLI model.  The model
 is lazy-loaded on first use so application startup is not affected.
 """
 
@@ -17,7 +17,7 @@ from typing import Any
 log = logging.getLogger(__name__)
 
 # ── Configuration ──────────────────────────────────────────────────
-_MODEL_NAME = "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli"
+_MODEL_NAME = "typeform/distilbert-base-uncased-mnli"
 
 # Labels aligned with the regex categories plus a general manipulation
 # label for subtle social-engineering patterns regex can't catch.
@@ -30,9 +30,9 @@ _LABELS: list[str] = [
 
 # Minimum confidence score for a label to be considered a positive
 # detection.  Below this threshold the signal is treated as noise.
-# Set to 0.70 to reduce false positives on legitimate business emails
-# while preserving sensitivity to genuine phishing language.
-_CONFIDENCE_THRESHOLD = 0.70
+# Set to 0.40 for DistilBERT-MNLI which produces lower but well-separated
+# sigmoid scores (clean emails ≈ 0.30, phishing ≈ 0.48–0.93).
+_CONFIDENCE_THRESHOLD = 0.40
 
 # ── Lazy-loaded singleton ─────────────────────────────────────────
 _classifier: Any | None = None

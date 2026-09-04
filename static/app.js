@@ -2,6 +2,7 @@
   'use strict';
 
   const $ = (selector, root = document) => root.querySelector(selector);
+  const $$ = (selector, root = document) => root.querySelectorAll(selector);
   const esc = (value) => String(value ?? '—').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
   const levelClass = (level = 'Low') => ({ Critical: 'bg-red-500/15 text-red-300 ring-red-500/30', High: 'bg-orange-500/15 text-orange-300 ring-orange-500/30', Medium: 'bg-yellow-400/15 text-yellow-200 ring-yellow-400/30', Low: 'bg-green-500/15 text-green-300 ring-green-500/30', Safe: 'bg-green-500/15 text-green-300 ring-green-500/30' })[level] || 'bg-slate-700 text-slate-200 ring-slate-600';
   const scoreColor = score => score >= 75 ? 'var(--sev-critical, #ef4444)' : score >= 50 ? 'var(--sev-high, #f97316)' : score >= 25 ? 'var(--sev-medium, #facc15)' : 'var(--sev-low, #22c55e)';
@@ -11,6 +12,42 @@
   const empty = text => `<p class="rounded-lg border border-dashed border-slate-700 p-5 text-sm text-slate-400">${esc(text)}</p>`;
   const value = item => item === null || item === undefined || item === '' ? '—' : item;
   const status = state => { const normalized = String(state || 'not present').toLowerCase(); return normalized === 'pass' ? 'text-green-300' : /fail|softfail|suspicious/.test(normalized) ? 'text-red-300' : 'text-yellow-200'; };
+
+  /* ── Technical term glossary ────────────────────────────────── */
+  const GLOSSARY = {
+    'SPF': 'Sender Policy Framework — a DNS record listing which IP addresses are authorized to send email for a domain. A "fail" means the sender is not on that list.',
+    'DKIM': 'DomainKeys Identified Mail — a cryptographic signature that proves the message was not altered in transit and genuinely came from the claimed domain.',
+    'DMARC': 'Domain-based Message Authentication, Reporting, and Conformance — a policy that tells receivers what to do when SPF or DKIM checks fail.',
+    'CompAuth': 'Composite Authentication — Microsoft\'s combined check that the visible From address aligns with the authenticated sending domain. A failure suggests spoofing.',
+    'Homograph': 'A domain that visually mimics a legitimate one using lookalike Unicode characters (e.g., replacing Latin "a" with Cyrillic "а").',
+    'IOC': 'Indicator of Compromise — a technical artifact (IP, domain, hash) that suggests malicious activity.',
+    'WHOIS': 'A protocol for querying domain registration data to discover the registrar, creation date, and owner of a domain.',
+    'AbuseIPDB': 'A community-driven database that tracks IP addresses reported for malicious behaviour such as brute-force attacks or spam.',
+    'VirusTotal': 'A service by Google that scans URLs and domains against 70+ antivirus engines and security blocklists.',
+    'Reply-To': 'An email header that redirects replies to a different address than the sender, often abused to route victims to a scammer.',
+    'Return-Path': 'The envelope-level address where bounce messages go. If it diverges from From, the sender may be spoofing identity.',
+    'Received': 'A hop-by-hop trace added by each mail server. Analyzing the chain reveals the true origin and any relay anomalies.',
+    'X-Headers': 'Non-standard email headers (X-Mailer, X-Spam-Status) that can reveal the sending software or spam-filter decisions.',
+    'Softfail': 'A tentative SPF failure — the sender is not explicitly authorized but not explicitly denied either.',
+    'Phishing': 'A social-engineering attack that impersonates a trusted entity to steal credentials, money, or sensitive data.',
+    'Spoofing': 'Falsifying email headers or display names to make a message appear to come from a trusted source.',
+    'ML classification': 'A zero-shot neural text classifier (DeBERTa) running locally to detect urgency, credential theft, and social manipulation beyond regex patterns.',
+  };
+
+  /** Generate an inline "?" tooltip span for a technical term. */
+  function tt(term, definition) {
+    return `<span class="tt-trigger" tabindex="0" aria-label="${esc(definition)}"><span class="tt-icon" aria-hidden="true">?</span><span class="tt-bubble" role="tooltip">${esc(definition)}</span></span>`;
+  }
+
+  /** Wrap known technical terms in rendered HTML with tooltip spans. */
+  function injectTooltips(html) {
+    const safeTerms = Object.keys(GLOSSARY).map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).sort((a, b) => b.length - a.length);
+    const pattern = new RegExp(`\\b(${safeTerms.join('|')})\\b`, 'g');
+    return html.replace(pattern, (match) => {
+      const def = GLOSSARY[match];
+      return def ? `${match}${tt(match, def)}` : match;
+    });
+  }
 
   /* ── Concern categorisation (client-side, no backend change) ── */
   function categorizeConcern(text) {
@@ -200,7 +237,7 @@
   function rows(items, cells, noItems = 'No findings.') {
     return items?.length ? items.map(item => `<tr class="border-b border-slate-800 last:border-0">${cells(item)}</tr>`).join('') : `<tr><td colspan="99" class="px-3 py-5 text-slate-500">${esc(noItems)}</td></tr>`;
   }
-  function section(title, body, extra = '') { return `<div class="rounded-2xl border border-slate-800 bg-panel p-5 shadow-xl shadow-black/10 ${extra}"><h3 class="mb-4 font-semibold">${esc(title)}</h3>${body}</div>`; }
+  function section(title, body, extra = '') { return `<div class="rounded-2xl border border-slate-800 bg-panel p-5 shadow-xl shadow-black/10 ${extra}"><h3 class="mb-4 font-semibold">${esc(title)}</h3>${injectTooltips(body)}</div>`; }
   function chips(items, hashMode = false) { return items?.length ? `<div class="flex flex-wrap gap-2">${items.map(item => { const content = hashMode ? `${item.filename}: ${item.sha256}` : item; return `<button data-copy="${esc(content)}" class="max-w-full truncate rounded-md bg-slate-800 px-2.5 py-1.5 font-mono text-xs text-slate-300 hover:bg-slate-700" title="Click to copy">${esc(content)}</button>`; }).join('')}</div>` : '<span class="text-sm text-slate-500">None found</span>'; }
 
   function emailTabContent(tab, data) {
@@ -320,9 +357,23 @@
     const result = $(`#${type}-results`);
     const label = type === 'email' ? 'Inspecting email signals' : 'Inspecting link signals';
     const detail = type === 'email' ? 'Checking sender identity, headers, links, and attachments.' : 'Checking the destination, domain history, and DNS protections.';
-    result.innerHTML = `<div class="analysis-skeleton" role="status" aria-live="polite" aria-label="${label}"><div class="skeleton-card" style="display:flex;align-items:center;gap:1.5rem"><div class="skeleton-ring" aria-hidden="true"></div><div style="flex:1;max-width:34rem"><div class="skeleton-line" style="width:9rem"></div><p style="margin:.9rem 0 .35rem;font-weight:650">${label}…</p><p class="skeleton-label" style="margin:0">${detail}</p></div></div><div style="display:grid;gap:1.25rem;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))"><div class="skeleton-card"><div class="skeleton-line" style="width:35%"></div><div class="skeleton-line" style="width:82%;margin-top:1.25rem"></div><div class="skeleton-line" style="width:63%;margin-top:.8rem"></div><div class="skeleton-line" style="width:74%;margin-top:.8rem"></div></div><div class="skeleton-card"><div class="skeleton-line" style="width:42%"></div><div class="skeleton-line" style="width:93%;margin-top:1.25rem"></div><div class="skeleton-line" style="width:76%;margin-top:.8rem"></div><div class="skeleton-line" style="width:57%;margin-top:.8rem"></div></div></div></div>`;
+    result.innerHTML = `<div class="analysis-skeleton" role="status" aria-live="polite" aria-label="${label}"><div class="skeleton-card" style="display:flex;align-items:center;gap:1.5rem"><div class="skeleton-ring" aria-hidden="true"></div><div style="flex:1;max-width:34rem"><div class="skeleton-line" style="width:9rem"></div><p style="margin:.9rem 0 .35rem;font-weight:650">${label}…</p><p class="skeleton-label" style="margin:0">${detail}</p></div></div><div id="analysis-progress-steps" class="analysis-progress-steps"></div><div style="display:grid;gap:1.25rem;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))"><div class="skeleton-card"><div class="skeleton-line" style="width:35%"></div><div class="skeleton-line" style="width:82%;margin-top:1.25rem"></div><div class="skeleton-line" style="width:63%;margin-top:.8rem"></div><div class="skeleton-line" style="width:74%;margin-top:.8rem"></div></div><div class="skeleton-card"><div class="skeleton-line" style="width:42%"></div><div class="skeleton-line" style="width:93%;margin-top:1.25rem"></div><div class="skeleton-line" style="width:76%;margin-top:.8rem"></div><div class="skeleton-line" style="width:57%;margin-top:.8rem"></div></div></div></div>`;
     result.classList.remove('hidden');
     result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function updateProgressUI(phase, label, detail) {
+    const container = $('#analysis-progress-steps');
+    if (!container) return;
+    /* Mark previous steps as complete */
+    container.querySelectorAll('.progress-step:not(.progress-step--done)').forEach(el => {
+      el.classList.add('progress-step--done');
+      el.querySelector('.progress-step-icon').innerHTML = '<svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd"/></svg>';
+    });
+    const step = document.createElement('div');
+    step.className = 'progress-step progress-step--active';
+    step.innerHTML = `<span class="progress-step-icon"><span class="progress-spinner"></span></span><div><p class="progress-step-label">${esc(label)}</p><p class="progress-step-detail">${esc(detail)}</p></div>`;
+    container.appendChild(step);
   }
 
   function showAnalysisError(type, message) {
@@ -366,7 +417,7 @@
     });
     document.querySelectorAll('[data-page-target]').forEach(button => button.onclick = () => showPage(button.dataset.pageTarget));
     $('#refresh-dashboard').onclick = loadDashboard;
-    $('#email-form').onsubmit = async event => { event.preventDefault(); const form = event.currentTarget, statusEl = $('#email-status'); setLoading(form, statusEl, true, 'Analyzing email…'); showAnalysisLoading('email'); try { const data = await jsonFetch('/api/analyze-email', { method: 'POST', body: new FormData(form) }); statusEl.textContent = 'Analysis complete.'; statusEl.className = 'text-sm text-green-300'; renderEmail(data); form.reset(); loadDashboard(); } catch (error) { showAnalysisError('email', error.message); setLoading(form, statusEl, false, error.message); } finally { setLoading(form, statusEl, false); } };
+    $('#email-form').onsubmit = async event => { event.preventDefault(); const form = event.currentTarget, statusEl = $('#email-status'); setLoading(form, statusEl, true, 'Analyzing email…'); showAnalysisLoading('email'); try { const response = await fetch('/api/analyze-email-stream', { method: 'POST', body: new FormData(form) }); if (!response.ok) { const err = await response.json().catch(() => ({})); throw new Error(err.error || `Request failed (${response.status})`); } const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = '', data = null; while (true) { const { done, value: chunk } = await reader.read(); if (done) break; buffer += decoder.decode(chunk, { stream: true }); const lines = buffer.split('\n'); buffer = lines.pop(); let evtType = ''; for (const line of lines) { if (line.startsWith('event: ')) { evtType = line.slice(7).trim(); } else if (line.startsWith('data: ')) { try { const parsed = JSON.parse(line.slice(6)); if (evtType === 'progress') updateProgressUI(parsed.phase, parsed.label, parsed.detail); else if (evtType === 'result') data = parsed; else if (evtType === 'error') throw new Error(parsed.error); } catch (e) { if (e.message && e.message !== 'JSON.parse' && !e.message.includes('JSON')) throw e; } } } if (data) break; } if (!data) throw new Error('Analysis stream ended without results.'); statusEl.textContent = 'Analysis complete.'; statusEl.className = 'text-sm text-green-300'; renderEmail(data); form.reset(); loadDashboard(); } catch (error) { showAnalysisError('email', error.message); setLoading(form, statusEl, false, error.message); } finally { setLoading(form, statusEl, false); } };
     $('#url-form').onsubmit = async event => { event.preventDefault(); const form = event.currentTarget, statusEl = $('#url-status'); setLoading(form, statusEl, true, 'Scanning URL…'); showAnalysisLoading('url'); try { const data = await jsonFetch('/api/analyze-url', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: new FormData(form).get('url') }) }); statusEl.textContent = 'Scan complete.'; statusEl.className = 'mt-3 text-sm text-green-300'; renderUrl(data); form.reset(); loadDashboard(); } catch (error) { showAnalysisError('url', error.message); setLoading(form, statusEl, false, error.message); } finally { setLoading(form, statusEl, false); } };
     loadDashboard();
   });

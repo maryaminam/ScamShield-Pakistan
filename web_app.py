@@ -10,9 +10,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from secrets import token_urlsafe
 
+import threading
+
+import json as _json
+
 import uvicorn
 from fastapi import FastAPI, File, Form, Request, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -54,6 +58,25 @@ print("Loaded .env keys:", list(ENV.keys()))
 print("GROQ key present:", bool(GROQ_API_KEY), "| GEMINI key present:", bool(GEMINI_API_KEY))
 
 app = FastAPI(title="ScamShield Pakistan")
+
+
+@app.on_event("startup")
+async def _warm_nlp_classifier():
+    """Pre-load the NLP model in a background thread so the first request
+    doesn't pay the 15–30 s model-loading cost.  Does NOT block server
+    readiness — the warm-up runs alongside accepting connections."""
+    def _load():
+        try:
+            from nlp_phishing_classifier import _get_classifier
+            _get_classifier()
+        except Exception as exc:
+            print(f"[NLP warmup] Failed: {exc}")
+
+    t = threading.Thread(target=_load, daemon=True, name="nlp-warmup")
+    t.start()
+    # Don't await — let it run alongside the first requests.
+    print("[NLP warmup] Model loading in background thread…")
+
 
 # Serve static files (app.js, CSS, etc.)
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
@@ -176,6 +199,11 @@ async def _async_run_email_enrichment(
     # Cancel any tasks that exceeded the budget
     for task in pending:
         task.cancel()
+    # Give cancelled tasks a brief grace period to clean up, then abandon.
+    # Blocking threads (asyncio.to_thread WHOIS) can't be killed, so we
+    # cap the cleanup wait at 2 s to avoid holding up the response.
+    if pending:
+        await asyncio.wait(pending, timeout=2.0)
 
     # Map results back by identity
     for name, task in tasks.items():
@@ -229,10 +257,20 @@ async def _async_analyze_email(raw_text: str) -> dict:
         "timestamps": analyzer.analyze_timestamps(),
         "x_headers": analyzer.extract_x_headers(),
     }
-    patterns = analyzer.detect_phishing_patterns()
 
-    # Async I/O enrichment — all tasks run concurrently on the event loop
-    domain_rep, dns, abuse, url_domain_reps = await _async_run_email_enrichment(analyzer, urls)
+    # Run NLP classification and async enrichment in parallel.
+    # NLP is CPU-bound (thread pool); enrichment is I/O-bound (event loop).
+    # They overlap so the total wall time ≈ max(NLP, enrichment) instead of
+    # the sum of both.
+    nlp_task = asyncio.create_task(
+        asyncio.to_thread(analyzer.detect_phishing_patterns)
+    )
+    enrichment_task = asyncio.create_task(
+        _async_run_email_enrichment(analyzer, urls)
+    )
+    patterns, (domain_rep, dns, abuse, url_domain_reps) = await asyncio.gather(
+        nlp_task, enrichment_task,
+    )
 
     risk = analyzer.calculate_risk_score(
         auth=auth, urls=urls, attachments=attachments, domain_rep=domain_rep,
@@ -307,6 +345,133 @@ async def analyze_email_api(
         return result
     except Exception as exc:
         return JSONResponse({"error": f"Analysis failed: {exc}"}, status_code=500)
+
+
+# ── SSE progress-streaming endpoint ───────────────────────────────────
+def _sse_event(event: str, data: dict | str) -> str:
+    """Format a Server-Sent Events message."""
+    payload = data if isinstance(data, str) else _json.dumps(data, default=str)
+    return f"event: {event}\ndata: {payload}\n\n"
+
+
+@app.post("/api/analyze-email-stream")
+async def analyze_email_stream(
+    request: Request,
+    email_file: UploadFile | None = File(None),
+    raw_email: str = Form(""),
+):
+    """Analyze an email and stream progress updates via SSE.
+
+    Event types:
+        progress — ``{phase, label, detail}`` as each analysis step finishes.
+        result   — the complete analysis dict (same shape as ``/api/analyze-email``).
+        error    — ``{error: str}`` if the analysis fails.
+    """
+    client_ip = request.client.host if request.client else "unknown"
+    if _is_rate_limited(client_ip):
+        return JSONResponse(
+            {"error": "Too many requests. Please try again later."}, status_code=429,
+        )
+
+    raw_text: str | None = None
+    source_name: str | None = None
+
+    if email_file is not None and email_file.filename:
+        content = await email_file.read()
+        raw_text = content.decode("utf-8", errors="replace")
+        source_name = email_file.filename
+    elif raw_email.strip():
+        raw_text = raw_email.strip()
+        source_name = "Pasted email content"
+
+    if not raw_text:
+        return JSONResponse(
+            {"error": "Upload a .eml file or paste raw email content first."}, status_code=400,
+        )
+
+    async def event_stream():
+        try:
+            analyzer = EmailForensicAnalyzer(raw_text=raw_text)
+
+            # Phase 1 — Metadata & routing (fast, synchronous)
+            yield _sse_event("progress", {"phase": "metadata", "label": "Parsing headers",
+                                           "detail": "Extracting sender, subject, dates, and routing path"})
+            metadata = analyzer.extract_basic_metadata()
+            routing = analyzer.extract_routing_path()
+
+            # Phase 2 — Authentication
+            yield _sse_event("progress", {"phase": "auth", "label": "Verifying authentication",
+                                           "detail": "Checking SPF, DKIM, and DMARC alignment"})
+            auth = analyzer.check_authentication()
+
+            # Phase 3 — URLs & attachments
+            yield _sse_event("progress", {"phase": "urls", "label": "Scanning links and attachments",
+                                           "detail": "Detecting display/href mismatches and risky file types"})
+            urls = analyzer.extract_urls()
+            attachments = analyzer.extract_attachments()
+
+            # Phase 4 — Spoofing, headers, and NLP patterns
+            yield _sse_event("progress", {"phase": "patterns", "label": "Analyzing language and identity",
+                                           "detail": "Checking spoofing, phishing language, and ML classification"})
+            spoofing = analyzer.detect_spoofing()
+            header_analysis = {
+                "anomalies": analyzer.detect_header_anomalies(),
+                "spoofing": spoofing,
+                "timestamps": analyzer.analyze_timestamps(),
+                "x_headers": analyzer.extract_x_headers(),
+            }
+
+            # Run NLP + enrichment in parallel
+            yield _sse_event("progress", {"phase": "enrichment", "label": "Enriching reputation data",
+                                           "detail": "Running ML classification and DNS/WHOIS lookups in parallel"})
+            nlp_task = asyncio.create_task(
+                asyncio.to_thread(analyzer.detect_phishing_patterns)
+            )
+            enrichment_task = asyncio.create_task(
+                _async_run_email_enrichment(analyzer, urls)
+            )
+            patterns, (domain_rep, dns, abuse, url_domain_reps) = await asyncio.gather(
+                nlp_task, enrichment_task,
+            )
+
+            # Phase 6 — Risk scoring
+            yield _sse_event("progress", {"phase": "scoring", "label": "Calculating risk score",
+                                           "detail": "Combining all signals into a 0–100 weighted score"})
+            risk = analyzer.calculate_risk_score(
+                auth=auth, urls=urls, attachments=attachments, domain_rep=domain_rep,
+                abuse=abuse, patterns=patterns, spoofing=spoofing,
+                header_anomalies=header_analysis["anomalies"],
+                url_domain_reps=url_domain_reps,
+            )
+            threat_intel = {"dns": dns, "patterns": patterns, "abuse": abuse, "risk": risk}
+            iocs = analyzer.extract_iocs(routing=routing, urls=urls, attachments=attachments, metadata=metadata)
+
+            result = {
+                "metadata": metadata, "routing": routing, "auth": auth, "urls": urls,
+                "attachments": attachments, "domain_rep": domain_rep, "threat_intel": threat_intel,
+                "iocs": iocs, "vt_results": [],
+                "spoofing": spoofing, "header_analysis": header_analysis,
+                "url_domain_reps": url_domain_reps,
+            }
+            result["recommendations"] = build_recommendations(
+                risk.get("level"), result["spoofing"], result["threat_intel"]["patterns"], result["auth"],
+            )
+            result["report_id"] = _store_report_source(raw_text, result)
+            _append_activity("email", source_name or "Email", risk.get("score", 0), risk.get("level", "Low"))
+
+            yield _sse_event("result", result)
+
+        except Exception as exc:
+            yield _sse_event("error", {"error": f"Analysis failed: {exc}"})
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @app.post("/api/analyze-url")

@@ -1,0 +1,275 @@
+Original message
+Message ID	<010601a06501a29c-abdb7c16-d8c0-4da2-ad9e-e82793d3a510-000000@ap-northeast-1.amazonses.com>
+Created on:	3 September 2026 at 07:03 (Delivered after 0 seconds)
+From:	Alibaba Cloud AI Hackathon Pakistan 2026 <no-reply@aihackathon.cognix-pk.com>
+To:	maryaminam4113@gmail.com
+Subject:	Your Alibaba Cloud AI Hackathon Pakistan 2026 portal account
+SPF:	PASS with IP 23.251.234.56 Learn more
+DKIM:	'PASS' with domain aihackathon.cognix-pk.com Learn more
+DMARC:	'PASS' Learn more
+
+
+Download original	Copy to clipboard	
+Delivered-To: maryaminam4113@gmail.com
+Received: by 2002:a05:6674:7b1c:b0:74f:e7c3:53f7 with SMTP id zi28csp5499924pxc; Wed, 2 Sep 2026 19:03:21 -0700 (PDT)
+X-Received: by 2002:a05:6a21:3292:b0:3d3:aed2:6f20 with SMTP id adf61e73a8af0-3da216016b2mr2878753637.20.1788401001570; Wed, 02 Sep 2026 19:03:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1788401001; cv=none; d=google.com; s=arc-20260327; b=pyJYrPuKDSoiPAuRVJkuTTGu8IDVtWZMSKUY2QGnB1e0wWzThSPFMQdY4VAx3IKTzG QJ/5b7HO73mCDyX0aNUMV2MgJzefNj44Vzdhjq/KAWyF7z6Uxt+2fvtOL4zW54PLE0aj FiO6/afhIfFUzCi6f05sUycNggogKT6GzOpm7xy3novC8XeQiX5IEqcOEwFLaw0nQ4YP 8exTjiwedOlY44yrVszLDiZamU7WJONDDbbsoX7iTWe3PWBcKb6rtCLvdUTjx6CNU2eV +fTlU22fBGOO7+5M5MY95Y5RxnJxhojfjrqhmFaxXVjmbkcJfP8lTH5J80NPL7vU4eYL ASrw==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327; h=feedback-id:mime-version:date:message-id:subject:reply-to:to:from :dkim-signature:dkim-signature; bh=k6AzA0PMR4nOvXCF1EV+4Xu4+lSGLAU8MtsDKJP9XZE=; fh=iKcVxDQgrICWtHfG2Te3E+KlgHzDjv728WL7DhRN8i8=; b=Dyw3J8WtwIppl15R7CUPRZ7pZvk9vS94SndWGcK+RtPlOHDM+3F2LUlCzg7RQniWMK UyF0drPPFAT7Es4rK3bLbO7EXS8eWx1S30+tHrm7i9UtapFGNvC59PJm0ZhwS1Kb5Tsx 0Xu0/HDssElSdnhLHefNYfunPEo6DLbpgOS9W1Bm/qHzSo7qYi28gH++1zuGsoyNwqix qCkP6Ocaumgt1DdJrVW29xvuZkTG87dtXuckN+ZuChXIsecUfDK+yjgOBaiSNGynYRfu eR7bRc6kiMvTAB9JOr1TzLJ7fBWEBsRGCumKF39MnPsgn9/S43/4sUThIrpd6qNPAVA9 aCGQ==; dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com; dkim=pass header.i=@aihackathon.cognix-pk.com header.s=resend header.b=bpKINPMI; dkim=pass header.i=@amazonses.com header.s=zh4gjftm6etwoq6afzugpky45synznly header.b=MI9n6h0p; spf=pass (google.com: domain of 010601a06501a29c-abdb7c16-d8c0-4da2-ad9e-e82793d3a510-000000@send.aihackathon.cognix-pk.com designates 23.251.234.56 as permitted sender) smtp.mailfrom=010601a06501a29c-abdb7c16-d8c0-4da2-ad9e-e82793d3a510-000000@send.aihackathon.cognix-pk.com; dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cognix-pk.com
+Return-Path: <010601a06501a29c-abdb7c16-d8c0-4da2-ad9e-e82793d3a510-000000@send.aihackathon.cognix-pk.com>
+Received: from e234-56.smtp-out.ap-northeast-1.amazonses.com (e234-56.smtp-out.ap-northeast-1.amazonses.com. [23.251.234.56]) by mx.google.com with ESMTPS id 41be03b00d2f7-cc43d49e2edsi1342383a12.139.2026.09.02.19.03.21 for <maryaminam4113@gmail.com> (version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128); Wed, 02 Sep 2026 19:03:21 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 010601a06501a29c-abdb7c16-d8c0-4da2-ad9e-e82793d3a510-000000@send.aihackathon.cognix-pk.com designates 23.251.234.56 as permitted sender) client-ip=23.251.234.56;
+Authentication-Results: mx.google.com; dkim=pass header.i=@aihackathon.cognix-pk.com header.s=resend header.b=bpKINPMI; dkim=pass header.i=@amazonses.com header.s=zh4gjftm6etwoq6afzugpky45synznly header.b=MI9n6h0p; spf=pass (google.com: domain of 010601a06501a29c-abdb7c16-d8c0-4da2-ad9e-e82793d3a510-000000@send.aihackathon.cognix-pk.com designates 23.251.234.56 as permitted sender) smtp.mailfrom=010601a06501a29c-abdb7c16-d8c0-4da2-ad9e-e82793d3a510-000000@send.aihackathon.cognix-pk.com; dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cognix-pk.com
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple; s=resend; d=aihackathon.cognix-pk.com; t=1788401001; h=From:To:Reply-To:Subject:Message-ID:Date:MIME-Version:Content-Type; bh=X+bX4r4q0hJiFGD9obLl8yFPb+rV++sJ7P5Q89xhHUw=; b=bpKINPMIXHnADoOGBpJ9ywnYVPc1Qg3P9R+Thmb4R3k/fv0RWfOIxNGHpaLKJTv9 X88/VbKnvVpofcBDx/XUmCRX3AkDuXwGKYr42x3ojZjfixWSRNHhey3fHPOYDEnOTWa b6ZmkWdtC0GX1/S5wnahsGFaDeFRwwgkOEa4bRn0=
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple; s=zh4gjftm6etwoq6afzugpky45synznly; d=amazonses.com; t=1788401001; h=From:To:Reply-To:Subject:Message-ID:Date:MIME-Version:Content-Type:Feedback-ID; bh=X+bX4r4q0hJiFGD9obLl8yFPb+rV++sJ7P5Q89xhHUw=; b=MI9n6h0pmd74+nMvNnA/pWQf5pv87EdNBPMD4rRq9n/fpER9XEkcEDGkEw/La+Zz 8j+L+680MrFee3EWC55OSfilZRkrqeuSOAaJeD5HklnDqUzCEYBYBXZJp6LupqJ8W46 jxGNPRtHndJWZJ17e3yo4W2zZqqmgySYFDIQuIMQ=
+From: Alibaba Cloud AI Hackathon Pakistan 2026 <no-reply@aihackathon.cognix-pk.com>
+To: maryaminam4113@gmail.com
+Reply-To: aihackathon@banoqabil.pk
+Subject: Your Alibaba Cloud AI Hackathon Pakistan 2026 portal account
+Message-ID: <010601a06501a29c-abdb7c16-d8c0-4da2-ad9e-e82793d3a510-000000@ap-northeast-1.amazonses.com>
+Date: Thu, 3 Sep 2026 02:03:21 +0000
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="--_NmP-10bb22428f43203d-Part_1"
+Feedback-ID: :1.ap-northeast-1.7m5SE7Nhr5zRbx7UC+i6aAxUykaYYcT/dPL8o0dtu2pbjokePvmFTAzvCqMHWcqH/jBdf6qu0BVVWFlxomdiSYI71FLkew6jqiSrU1OWswFHwY+qwlXJYTUrWAWDwnRZvDdAQK2wuey3QKpA7v0fmVxpyMdbEpPAZaXdFbm13Z2fEXzi1kLahoVzP9pw+dg/:1.ap-northeast-1.RirEgqlsQndpFdi8TUL4OAg2i1Pw380m+rTe2cbKEVU=:AmazonSES
+X-SES-Outgoing: 2026.09.03-23.251.234.56
+
+----_NmP-10bb22428f43203d-Part_1
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+Alibaba Cloud AI Hackathon Pakistan 2026
+
+THE SUBMISSION PORTAL IS OPEN. HERE IS YOUR ACCOUNT.
+
+You are getting this because your project qualified and you registered as
+the team lead. This is where you submit it.
+
+Set a password to open your account. Everything from here happens in the
+portal.
+
+Open this link to set your password:
+
+https://aihackathon.cognix-pk.com/auth/confirm?token_hash=3D9fd71da91dbc4b0=
+1c9aff23491867a4984f727188340d6e5d5177086&type=3Dinvite
+
+LINK EXPIRED, OR ALREADY USED?
+
+Go to https://aihackathon.cognix-pk.com/forgot-password, enter this same em=
+ail address, and
+you will get a fresh link to set your password. You do not need this
+message again.
+
+IN THE PORTAL YOU CAN
+
+  * Submit your project: GitHub repository, slides and a short write-up
+  * Ask the organisers a question and get a written reply
+  * Pick up your event pass and your presentation time
+  * See your result once judging is done
+
+Nothing is final until you press Submit. Save a draft and come back
+later. That is fine. All the dates, including the deadline, are in the
+portal.
+
+ONE ACCOUNT PER PROJECT
+
+It belongs to whoever registered as team lead. Your teammates do not
+need their own logins. If you registered two projects, you will get two
+of these emails.
+
+NEED HELP?
+
+If you can sign in, use Queries in the portal. That is the fastest way
+and we answer you right there.
+
+If you cannot sign in, email aihackathon@banoqabil.pk and we will help
+you.
+
+This message is sent automatically, so please use one of those two
+rather than replying to it.
+
+--
+https://www.linkedin.com/company/cognix-pk/
+
+You are getting this because you registered a project for the Alibaba
+Cloud AI Hackathon Pakistan 2026 and it qualified. Please do not forward
+this link. Anyone who opens it can set the password on your team's
+account.
+
+----_NmP-10bb22428f43203d-Part_1
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<!-- Generated from supabase/templates/invite.html by programmatic replacem=
+ent.
+     DO NOT EDIT HERE ALONE: this is the same copy GoTrue sends, so the two=
+ must
+     stay in step, or a participant invited from the dashboard and one invi=
+ted by
+     this mailer receive different emails.
+
+     Two placeholders, both filled by cli.mjs: the confirm URL, and the sit=
+e URL
+     used by the forgot-password fallback. GoTrue interpolates its own inst=
+ead.
+
+     This comment deliberately does not name the placeholder tokens:
+     renderTemplates() does a replaceAll, so writing them here would interp=
+olate a
+     live invite URL into an HTML comment in every message. -->
+<div style=3D"display:none;max-height:0;overflow:hidden;opacity:0;">
+  The submission portal is open. Set a password and submit your project.
+</div>
+
+<table role=3D"presentation" width=3D"100%" cellpadding=3D"0" cellspacing=
+=3D"0" border=3D"0"
+       style=3D"background:#f5f5f4;margin:0;padding:24px 12px;">
+ <tr><td align=3D"center">
+  <table role=3D"presentation" width=3D"100%" cellpadding=3D"0" cellspacing=
+=3D"0" border=3D"0"
+         style=3D"max-width:600px;background:#ffffff;border:1px solid #e7e5=
+e4;border-radius:10px;">
+
+   <tr><td style=3D"padding:32px 32px 0 32px;font-family:-apple-system,Blin=
+kMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+     <p style=3D"margin:0 0 6px 0;font-size:12px;line-height:18px;color:#78=
+716c;letter-spacing:.12em;text-transform:uppercase;font-weight:600;">
+       Alibaba Cloud AI Hackathon Pakistan 2026
+     </p>
+     <h1 style=3D"margin:0;font-size:23px;line-height:31px;font-weight:600;=
+color:#1c1917;letter-spacing:-0.01em;">
+       The submission portal is open. Here is your account.
+     </h1>
+   </td></tr>
+
+   <tr><td style=3D"padding:16px 32px 0 32px;font-family:-apple-system,Blin=
+kMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;=
+line-height:24px;color:#292524;">
+     <p style=3D"margin:0 0 14px 0;">
+       You are getting this because your project qualified and you register=
+ed as the team
+       lead. This is where you submit it.
+     </p>
+     <p style=3D"margin:0 0 20px 0;">
+       Set a password to open your account. Everything from here happens in=
+ the portal.
+     </p>
+   </td></tr>
+
+   <tr><td align=3D"center" style=3D"padding:0 32px 4px 32px;">
+     <table role=3D"presentation" cellpadding=3D"0" cellspacing=3D"0" borde=
+r=3D"0">
+      <tr><td align=3D"center" bgcolor=3D"#1c1917" style=3D"border-radius:8=
+px;">
+       <a href=3D"https://aihackathon.cognix-pk.com/auth/confirm?token_hash=
+=3D9fd71da91dbc4b01c9aff23491867a4984f727188340d6e5d5177086&amp;type=3Dinvi=
+te"
+          style=3D"display:inline-block;padding:14px 30px;font-family:-appl=
+e-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;fo=
+nt-size:15px;line-height:20px;font-weight:600;color:#ffffff;text-decoration=
+:none;border-radius:8px;">
+         Set your password
+       </a>
+      </td></tr>
+     </table>
+   </td></tr>
+
+   <tr><td style=3D"padding:16px 32px 20px 32px;font-family:-apple-system,B=
+linkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13=
+px;line-height:20px;color:#78716c;">
+     <p style=3D"margin:0 0 8px 0;">If the button does not work, copy this =
+address into your browser:</p>
+     <p style=3D"margin:0 0 14px 0;word-break:break-all;">
+       <a href=3D"https://aihackathon.cognix-pk.com/auth/confirm?token_hash=
+=3D9fd71da91dbc4b01c9aff23491867a4984f727188340d6e5d5177086&amp;type=3Dinvi=
+te"
+          style=3D"color:#57534e;">https://aihackathon.cognix-pk.com/auth/c=
+onfirm?token_hash=3D9fd71da91dbc4b01c9aff23491867a4984f727188340d6e5d517708=
+6&amp;type=3Dinvite</a>
+     </p>
+     <p style=3D"margin:0;">
+       <strong style=3D"color:#292524;">Link expired, or already used?</str=
+ong> Go to
+       <a href=3D"https://aihackathon.cognix-pk.com/forgot-password" style=
+=3D"color:#57534e;">https://aihackathon.cognix-pk.com/forgot-password</a>,
+       enter this same email address, and you will get a fresh link to set =
+your password.
+       You do not need this message again.
+     </p>
+   </td></tr>
+
+   <tr><td style=3D"padding:0 32px 18px 32px;font-family:-apple-system,Blin=
+kMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;=
+line-height:24px;color:#292524;">
+     <p style=3D"margin:0 0 8px 0;font-weight:600;color:#1c1917;">In the po=
+rtal you can</p>
+     <ul style=3D"margin:0 0 14px 0;padding-left:20px;">
+       <li style=3D"margin:0 0 7px 0;">Submit your project: a public GitHub=
+ repository, slides and a short write-up</li>
+       <li style=3D"margin:0 0 7px 0;">Ask the organisers a question and ge=
+t a written reply</li>
+       <li style=3D"margin:0 0 7px 0;">Pick up your event pass and your pre=
+sentation time</li>
+       <li style=3D"margin:0;">See your result once judging is done</li>
+     </ul>
+     <p style=3D"margin:0;">
+       Nothing is final until you press Submit. Save a draft and come back =
+later. That is fine.
+       All the dates, including the deadline, are in the portal.
+     </p>
+   </td></tr>
+
+   <tr><td style=3D"padding:0 32px 22px 32px;">
+     <table role=3D"presentation" width=3D"100%" cellpadding=3D"0" cellspac=
+ing=3D"0" border=3D"0"
+            style=3D"background:#fafaf9;border:1px solid #e7e5e4;border-rad=
+ius:8px;">
+      <tr><td style=3D"padding:15px 17px;font-family:-apple-system,BlinkMac=
+SystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line=
+-height:20px;color:#57534e;">
+        <p style=3D"margin:0 0 10px 0;">
+          <strong style=3D"color:#292524;">One account per project.</strong=
+> It belongs to whoever
+          registered as team lead. Your teammates do not need their own log=
+ins. If you registered
+          two projects, you will get two of these emails.
+        </p>
+        <p style=3D"margin:0 0 10px 0;">
+          <strong style=3D"color:#292524;">Need help?</strong> If you can s=
+ign in, use
+          <strong>Queries</strong> in the portal. That is the fastest way a=
+nd we answer you right
+          there. If you cannot sign in, email
+          <a href=3D"mailto:aihackathon@banoqabil.pk" style=3D"color:#57534=
+e;">aihackathon@banoqabil.pk</a> and we will help you.
+        </p>
+        <p style=3D"margin:0;">
+          This message is sent automatically, so please use one of those tw=
+o rather than replying
+          to it.
+        </p>
+      </td></tr>
+     </table>
+   </td></tr>
+
+   <tr><td style=3D"padding:0 32px 30px 32px;font-family:-apple-system,Blin=
+kMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;=
+line-height:19px;color:#a8a29e;border-top:1px solid #f5f5f4;padding-top:18p=
+x;">
+     <p style=3D"margin:0 0 12px 0;">
+       <a href=3D"https://www.linkedin.com/company/cognix-pk/" style=3D"col=
+or:#78716c;">linkedin.com/company/cognix-pk</a>
+     </p>
+     <p style=3D"margin:0;">
+       You are getting this because you registered a project for the Alibab=
+a Cloud AI Hackathon
+       Pakistan 2026 and it qualified. Please do not forward this link. Any=
+one who opens it can set
+       the password on your team's account.
+     </p>
+   </td></tr>
+
+  </table>
+ </td></tr>
+</table>
+
+----_NmP-10bb22428f43203d-Part_1--

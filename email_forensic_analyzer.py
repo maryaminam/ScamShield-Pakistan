@@ -80,7 +80,7 @@ _URGENCY_PATTERNS = re.compile(
     r"urgent|immediately|act now|right away|within \d+ hours?"
     r"|suspend|deactivat|terminat|locked|disabled|compromised"
     r"|verify your|confirm your|update your|validate your"
-    r"|unusual activity|unauthorized|security alert|suspicious"
+    r"|unusual activity|unauthorized|security alert"
     r"|click here|click below|click immediately"
     r"|final warning|last chance|expire|expiring"
     r")\b",
@@ -88,7 +88,7 @@ _URGENCY_PATTERNS = re.compile(
 )
 _CREDENTIAL_PATTERNS = re.compile(
     r"\b("
-    r"password|login|credential|social security|ssn|credit card"
+    r"password|credential|social security|ssn|credit card"
     r"|bank account|routing number|pin number|cvv"
     r"|enter your|provide your|submit your|send your"
     r")\b",
@@ -96,13 +96,65 @@ _CREDENTIAL_PATTERNS = re.compile(
 )
 _IMPERSONATION_PATTERNS = re.compile(
     r"\b("
-    r"paypal|apple|microsoft|google|amazon|netflix|facebook"
+    r"paypal|apple|microsoft"
+    r"|google(?!\s+(?:chrome|play|drive|maps|photos|meet|workspace|classroom|forms|docs))"
+    r"|amazon|netflix|facebook"
     r"|instagram|whatsapp|bank of america|wells fargo|chase"
     r"|irs|hmrc|tax refund|customs|fedex|ups|dhl"
     r"|helpdesk|it department|support team|admin team"
     r")\b",
     re.IGNORECASE,
 )
+
+# ── Preamble detection for email-viewer exports ───────────────────────
+# Some mail providers (Postmark, etc.) prepend a human-readable metadata
+# block before the real RFC 5322 headers when exporting a message.  The
+# standard parser treats the first blank line as end-of-headers, so the
+# actual headers end up in the body.  Detect and strip the preamble.
+_VIEWER_PREAMBLE_RE = re.compile(
+    r"^(?:Original message|Download original|Copy to clipboard)",
+    re.MULTILINE | re.IGNORECASE,
+)
+
+
+def _strip_viewer_preamble(raw_text: str) -> str:
+    """Remove non-standard metadata blocks prepended by email viewers.
+
+    If the text starts with a Postmark-style preamble, locate the first
+    standard RFC 5322 header after a blank line and return the text from
+    that point onwards.  Returns *raw_text* unchanged for normal .eml files.
+    """
+    # Quick check — most legitimate .eml files won't have this.
+    if not _VIEWER_PREAMBLE_RE.search(raw_text[:500]):
+        return raw_text
+
+    lines = raw_text.split("\n")
+
+    # Walk through lines looking for the start of real headers after
+    # the first blank line.  Real headers match "Name: value" where
+    # Name is a well-known email header field.
+    _HEADER_NAMES = {
+        "delivered-to", "received", "return-path", "from", "to",
+        "subject", "date", "message-id", "mime-version",
+        "content-type", "dkim-signature", "arc-seal",
+        "arc-message-signature", "arc-authentication-results",
+        "authentication-results", "received-spf", "x-received",
+    }
+    past_blank = False
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped:
+            past_blank = True
+            continue
+        if past_blank:
+            colon = stripped.find(":")
+            if colon > 0:
+                name = stripped[:colon].strip().lower()
+                if name in _HEADER_NAMES:
+                    return "\n".join(lines[i:])
+
+    return raw_text
+
 
 # X-Headers of forensic interest.
 _FORENSIC_X_HEADERS = [
@@ -200,6 +252,31 @@ _BRAND_DOMAINS = {
     "nadra": {"nadra.gov.pk"},
 }
 
+# Known Email Service Provider (ESP) domains.
+# These are legitimate infrastructure used by ESPs to send, track, and
+# manage emails on behalf of their clients.  Signals from these domains
+# should not be treated as suspicious.
+_ESP_DOMAINS = {
+    # Postmark
+    "pstmrk.it", "mtasv.net", "postmarkapp.com",
+    # SendGrid / Twilio
+    "sendgrid.net", "sendgrid.com",
+    # Mailchimp
+    "mailchimp.com", "list-manage.com", "list-manage1.com",
+    # Amazon SES
+    "amazonses.com", "email.amazonses.com",
+    # Mandrill / Mailchimp Transactional
+    "mandrillapp.com",
+    # Brevo (formerly Sendinblue)
+    "sendinblue.com", "brevo.com", "sibforms.com",
+    # Campaign Monitor
+    "campaign-archive.com", "createsend.com",
+    # Constant Contact
+    "constantcontact.com", "rs6.net",
+    # HubSpot
+    "hubspotemail.net", "hsms06.com",
+}
+
 # Free webmail providers — corporate-sounding display names from these are
 # almost always phishing.
 _FREE_MAIL_PROVIDERS = {
@@ -231,6 +308,12 @@ _NAME_NOISE_TOKENS = frozenset({
     "mr", "mrs", "ms", "miss", "mx", "dr", "prof", "sir", "madam", "rev",
     "the", "and", "of", "via", "from", "der", "den", "van", "von", "de",
     "la", "le", "el", "al", "bin", "ibn", "abu",
+})
+
+_FUNCTIONAL_LOCAL_PARTS = frozenset({
+    "no-reply", "noreply", "admin", "support", "info", "contact",
+    "sales", "billing", "alerts", "hello", "team", "newsletter",
+    "events", "donotreply", "do-not-reply"
 })
 
 # Minimum token length required for a "substring inside local-part" match.
@@ -273,6 +356,9 @@ class EmailForensicAnalyzer:
             if not path.exists():
                 raise FileNotFoundError(f"File not found: {eml_file}")
             raw_text = path.read_text(encoding="utf-8", errors="replace")
+
+        # Strip Postmark / email-viewer preamble if present.
+        raw_text = _strip_viewer_preamble(raw_text)
 
         self.msg = email.message_from_string(raw_text, policy=email.policy.default)
 
@@ -1244,30 +1330,49 @@ class EmailForensicAnalyzer:
                 spoofing.get("findings", []),
                 key=lambda f: _sev_order.get(f.get("severity", "low"), 2),
             )
-            spoofing_cap = _WEIGHTS["spoofing"] + _WEIGHTS["spoofing"] // 2
-            spoof_pts = 0
-            for i, finding in enumerate(sorted_findings):
-                sev = finding.get("severity", "low")
-                if i == 0:
-                    # First (highest-severity) finding: full weight
-                    if sev == "high":
-                        pts = _WEIGHTS["spoofing"]
-                    elif sev == "medium":
-                        pts = _WEIGHTS["spoofing"] // 2
-                    else:
-                        pts = _WEIGHTS["spoofing"] // 4
-                else:
-                    # Additional findings: smaller fixed bonus
-                    if sev in ("high", "medium"):
-                        pts = _WEIGHTS["spoofing"] // 4
-                    else:
-                        pts = _WEIGHTS["spoofing"] // 8
-                spoof_pts = min(spoof_pts + pts, spoofing_cap)
-            score += spoof_pts
-            breakdown["spoofing"] = (
-                spoof_pts,
-                "; ".join(f["message"] for f in sorted_findings),
+            # When authentication passes (SPF+DKIM+DMARC), the email was
+            # authorized by the sending domain.  Reply-To / Return-Path
+            # divergence is then typical of ESP setups, not spoofing.
+            # Filter out these findings so legitimate ESP emails aren't
+            # penalised.
+            _auth_ok = (
+                not auth.get("is_suspicious")
+                and auth.get("compauth") != "fail"
+                and any(auth.get(p) == "pass" for p in ("spf", "dkim", "dmarc"))
             )
+            if _auth_ok:
+                sorted_findings = [
+                    f for f in sorted_findings
+                    if f.get("type") not in ("reply_to_divergence", "return_path_divergence")
+                ]
+            if not sorted_findings:
+                # All spoofing findings were filtered out.
+                pass
+            else:
+                spoofing_cap = _WEIGHTS["spoofing"] + _WEIGHTS["spoofing"] // 2
+                spoof_pts = 0
+                for i, finding in enumerate(sorted_findings):
+                    sev = finding.get("severity", "low")
+                    if i == 0:
+                        # First (highest-severity) finding: full weight
+                        if sev == "high":
+                            pts = _WEIGHTS["spoofing"]
+                        elif sev == "medium":
+                            pts = _WEIGHTS["spoofing"] // 2
+                        else:
+                            pts = _WEIGHTS["spoofing"] // 4
+                    else:
+                        # Additional findings: smaller fixed bonus
+                        if sev in ("high", "medium"):
+                            pts = _WEIGHTS["spoofing"] // 4
+                        else:
+                            pts = _WEIGHTS["spoofing"] // 8
+                    spoof_pts = min(spoof_pts + pts, spoofing_cap)
+                score += spoof_pts
+                breakdown["spoofing"] = (
+                    spoof_pts,
+                    "; ".join(f["message"] for f in sorted_findings),
+                )
 
         # 1. Authentication failures
         if auth.get("is_suspicious"):
@@ -1420,7 +1525,19 @@ class EmailForensicAnalyzer:
             "DKIM" in f.get("message", "")
             for f in (spoofing or {}).get("findings", [])
         )
-        if dkim_anomaly and not spoofing_covers_dkim:
+        # Skip penalty when the mismatched DKIM domain is a known ESP.
+        dkim_is_esp = False
+        if dkim_anomaly:
+            for a in header_anomalies.get("anomalies", []):
+                m = re.search(r"DKIM signing domain \(([^)]+)\)", a)
+                if m:
+                    dom = m.group(1)
+                    if dom in _ESP_DOMAINS or any(
+                        dom.endswith("." + esp) for esp in _ESP_DOMAINS
+                    ):
+                        dkim_is_esp = True
+                        break
+        if dkim_anomaly and not spoofing_covers_dkim and not dkim_is_esp:
             pts = _WEIGHTS["header_anomaly"]
             score += pts
             breakdown["header_anomaly"] = (
@@ -1444,7 +1561,12 @@ class EmailForensicAnalyzer:
                     f"Linked domain '{young_domains[0]}' registered recently.",
                 )
 
-            vt_bad = [entry["domain"] for entry in url_domain_reps if entry.get("vt_malicious")]
+            vt_bad = [
+                entry["domain"] for entry in url_domain_reps
+                if entry.get("vt_malicious")
+                and entry["domain"] not in _ESP_DOMAINS
+                and not any(entry["domain"].endswith("." + esp) for esp in _ESP_DOMAINS)
+            ]
             if vt_bad:
                 pts = _WEIGHTS["vt_url_malicious"]
                 score += pts
@@ -1495,6 +1617,49 @@ class EmailForensicAnalyzer:
                     pts,
                     f"Link path contains phishing lure terminology ({terms}) on {u.get('domain')}",
                 )
+
+        # Content-signal risk cap
+        # Ensure domain age is positively verified as NOT young.
+        domain_verified_old = False
+        if domain_rep and not domain_rep.get("error") and isinstance(domain_rep.get("domain_age_days"), int):
+            if not domain_rep.get("is_young"):
+                domain_verified_old = True
+
+        has_hard_indicators = (
+            auth.get("is_suspicious")
+            or auth.get("compauth") == "fail"
+            or bool([u for u in (urls or []) if u.get("mismatch")])
+            or bool([a for a in (attachments or []) if a.get("risky")])
+            or bool([a for a in (attachments or []) if a.get("brand_mismatch")])
+            or (spoofing and spoofing.get("severity") == "high")
+            or (url_domain_reps and any(
+                r.get("vt_malicious") or r.get("abuse_flagged") or r.get("is_young")
+                for r in url_domain_reps
+            ))
+            or bool([u for u in (urls or []) if u.get("is_homograph")])
+            or bool([u for u in (urls or []) if u.get("path_indicators", {}).get("path_brand_match")])
+        )
+
+        if domain_verified_old and not has_hard_indicators:
+            # 1. Cap softer signals (urgency, impersonation, ml_manipulation) together at max 20 pts
+            soft_score = 0
+            if "urgency_lang" in breakdown:
+                soft_score += breakdown["urgency_lang"][0]
+            if "impersonation" in breakdown:
+                soft_score += breakdown["impersonation"][0]
+            if "ml_manipulation" in breakdown:
+                soft_score += breakdown["ml_manipulation"][0]
+
+            if soft_score > 20:
+                deduction = soft_score - 20
+                score -= deduction
+
+            # 2. Credential language gets moderately reduced but remains strong.
+            if "credential_lang" in breakdown:
+                cred_pts = breakdown["credential_lang"][0]
+                # E.g., reduce +40 down to +30 max.
+                if cred_pts > 30:
+                    score -= (cred_pts - 30)
 
         # Determine threat level.
         score = min(score, 100)  # ML bonuses can exceed the 0–100 budget
@@ -1676,9 +1841,16 @@ class EmailForensicAnalyzer:
         return_path_hdr = self.msg.get("Return-Path") or ""
 
         display_name, addr = email.utils.parseaddr(from_hdr)
+        if not addr:
+            import re
+            m = re.search(r'<([^>]+)>', from_hdr)
+            if m:
+                addr = m.group(1).strip()
+                display_name = from_hdr[:m.start()]
+                
         from_addr = addr.lower() if addr else None
         from_domain = from_addr.split("@", 1)[1] if from_addr and "@" in from_addr else None
-        display_name = (display_name or "").strip()
+        display_name = (display_name or "").strip(' "\',_<')
 
         _, reply_addr = email.utils.parseaddr(reply_to_hdr)
         reply_addr = reply_addr.lower() if reply_addr else None
@@ -1742,7 +1914,7 @@ class EmailForensicAnalyzer:
         ):
             name_tokens = self._normalize_name_tokens(display_name)
             local_part = from_addr.split("@", 1)[0]
-            if name_tokens and not self._local_part_matches_name(
+            if name_tokens and local_part.lower() not in _FUNCTIONAL_LOCAL_PARTS and not self._local_part_matches_name(
                 local_part, name_tokens
             ):
                 findings.append({

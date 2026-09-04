@@ -1,0 +1,14 @@
+From: Banking Support <support@legit-bank.com>
+To: victim@example.com
+Subject: URGENT: Update your banking password
+Date: Fri, 04 Sep 2026 12:00:00 +0000
+Message-ID: <12345@legit-bank.com>
+Authentication-Results: mx.google.com; spf=pass (google.com: domain of support@legit-bank.com designates 192.168.1.1 as permitted sender); dkim=pass header.i=@legit-bank.com; dmarc=pass
+Content-Type: text/plain
+
+This is an urgent security alert regarding your bank account.
+Please update your password immediately by clicking the link below:
+
+https://legit-bank.com/update-password
+
+You must submit your routing number and account immediately or it will be suspended.
