@@ -374,6 +374,15 @@ def _build_trimmed_input(result: dict, source: str = "email") -> dict:
         for signal, item in breakdown.items()
     }
 
+    # ``header_analysis.anomalies`` is either the dict returned by
+    # ``detect_header_anomalies()`` or, in some older shapes, a list.
+    _header_anomalies_raw = _safe_get(result, "header_analysis", "anomalies")
+    _header_anomalies_list = (
+        _header_anomalies_raw.get("anomalies", [])
+        if isinstance(_header_anomalies_raw, dict)
+        else (_header_anomalies_raw or [])
+    )
+
     return {
         "source": source,
         "risk_score": risk.get("score"),
@@ -424,9 +433,7 @@ def _build_trimmed_input(result: dict, source: str = "email") -> dict:
             "abuse_score": abuse.get("abuse_score"),
             "is_flagged": abuse.get("is_flagged"),
         } if not abuse.get("error") else {"error": abuse.get("error")},
-        "header_anomalies": [
-            a for a in (_safe_get(result, "header_analysis", "anomalies") or [])[:5]
-        ],
+        "header_anomalies": [a for a in _header_anomalies_list[:5]],
         "url_domain_reps": [
             {"domain": r.get("domain"), "domain_age_days": r.get("domain_age_days"),
              "is_young": r.get("is_young")}
