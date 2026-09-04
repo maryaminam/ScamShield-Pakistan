@@ -571,6 +571,7 @@ async def explain_api(request: Request):
     normalized = ai_explainer.normalize_for_explanation(analysis, source)
     result = await ai_explainer.async_generate_explanation(
         normalized,
+        source=source,
         groq_api_key=GROQ_API_KEY,
         gemini_api_key=GEMINI_API_KEY,
     )
