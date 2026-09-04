@@ -408,7 +408,144 @@
     try { localStorage.setItem('scamshield-theme', isDark ? 'dark' : 'light'); } catch (_) { /* Storage is optional. */ }
   }
 
+  /* ── Pill Nav Animations ────────────────────────────────── */
+  function initPillNav() {
+    if (!window.gsap) return;
+    const ease = 'power3.easeOut';
+    const pills = document.querySelectorAll('.pill');
+    const tlRefs = [];
+    const activeTweenRefs = [];
+
+    const layout = () => {
+      pills.forEach((pill, index) => {
+        const circle = pill.querySelector('.hover-circle');
+        const label = pill.querySelector('.pill-label');
+        const hover = pill.querySelector('.pill-label-hover');
+        if (!circle) return;
+
+        const rect = pill.getBoundingClientRect();
+        const { width: w, height: h } = rect;
+        if (!w || !h) return; // Hidden on mobile sometimes
+
+        const R = ((w * w) / 4 + h * h) / (2 * h);
+        const D = Math.ceil(2 * R) + 2;
+        const delta = Math.ceil(R - Math.sqrt(Math.max(0, R * R - (w * w) / 4))) + 6;
+        const originY = D - delta;
+
+        circle.style.width = `${D}px`;
+        circle.style.height = `${D}px`;
+        circle.style.bottom = `-${delta}px`;
+
+        gsap.set(circle, {
+          xPercent: -50,
+          scale: 0,
+          transformOrigin: `50% ${originY}px`
+        });
+
+        if (label) gsap.set(label, { y: 0 });
+        if (hover) gsap.set(hover, { y: h + 12, opacity: 0 });
+
+        if (tlRefs[index]) tlRefs[index].kill();
+        const tl = gsap.timeline({ paused: true });
+
+        tl.to(circle, { scale: 1.2, xPercent: -50, duration: 2, ease, overwrite: 'auto' }, 0);
+        if (label) tl.to(label, { y: -(h + 8), duration: 2, ease, overwrite: 'auto' }, 0);
+
+        if (hover) {
+          gsap.set(hover, { y: Math.ceil(h + 100), opacity: 0 });
+          tl.to(hover, { y: 0, opacity: 1, duration: 2, ease, overwrite: 'auto' }, 0);
+        }
+        tlRefs[index] = tl;
+      });
+    };
+
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(layout).catch(() => { });
+    }
+    layout();
+    window.addEventListener('resize', layout);
+
+    pills.forEach((pill, i) => {
+      pill.addEventListener('mouseenter', () => {
+        const tl = tlRefs[i];
+        if (!tl) return;
+        if (activeTweenRefs[i]) activeTweenRefs[i].kill();
+        activeTweenRefs[i] = tl.tweenTo(tl.duration(), { duration: 0.3, ease, overwrite: 'auto' });
+      });
+      pill.addEventListener('mouseleave', () => {
+        const tl = tlRefs[i];
+        if (!tl) return;
+        if (activeTweenRefs[i]) activeTweenRefs[i].kill();
+        activeTweenRefs[i] = tl.tweenTo(0, { duration: 0.2, ease, overwrite: 'auto' });
+      });
+    });
+
+    const logo = document.getElementById('pill-logo');
+    let logoTween = null;
+    if (logo) {
+      if (document.querySelector('.pill-logo svg')) {
+        gsap.set(document.querySelector('.pill-logo svg'), { scale: 0 });
+        gsap.to(document.querySelector('.pill-logo svg'), { scale: 1, duration: 0.6, ease });
+      }
+
+      logo.addEventListener('mouseenter', () => {
+        const icon = logo.querySelector('svg');
+        if (!icon) return;
+        if (logoTween) logoTween.kill();
+        gsap.set(icon, { rotate: 0 });
+        logoTween = gsap.to(icon, { rotate: 360, duration: 0.3, ease, overwrite: 'auto' });
+      });
+    }
+
+    const navItems = document.getElementById('pill-nav-items');
+    if (navItems) {
+      gsap.set(navItems, { width: 0, overflow: 'hidden' });
+      gsap.to(navItems, { width: 'auto', duration: 0.6, ease });
+    }
+
+    // Mobile menu toggle
+    const hamburgerBtn = document.getElementById('hamburger-btn');
+    const mobileMenu = document.getElementById('mobile-menu-ref');
+    let isMenuOpen = false;
+
+    if (hamburgerBtn && mobileMenu) {
+      gsap.set(mobileMenu, { visibility: 'hidden', opacity: 0, scaleY: 1 });
+
+      const toggleMobileMenu = () => {
+        isMenuOpen = !isMenuOpen;
+        const lines = hamburgerBtn.querySelectorAll('.hamburger-line');
+        if (isMenuOpen) {
+          gsap.to(lines[0], { rotation: 45, y: 3, duration: 0.3, ease });
+          gsap.to(lines[1], { rotation: -45, y: -3, duration: 0.3, ease });
+
+          gsap.set(mobileMenu, { visibility: 'visible' });
+          gsap.fromTo(mobileMenu,
+            { opacity: 0, y: 10, scaleY: 1 },
+            { opacity: 1, y: 0, scaleY: 1, duration: 0.3, ease, transformOrigin: 'top center' }
+          );
+        } else {
+          gsap.to(lines[0], { rotation: 0, y: 0, duration: 0.3, ease });
+          gsap.to(lines[1], { rotation: 0, y: 0, duration: 0.3, ease });
+
+          gsap.to(mobileMenu, {
+            opacity: 0, y: 10, scaleY: 1, duration: 0.2, ease, transformOrigin: 'top center',
+            onComplete: () => { gsap.set(mobileMenu, { visibility: 'hidden' }); }
+          });
+        }
+      };
+
+      hamburgerBtn.addEventListener('click', toggleMobileMenu);
+
+      document.querySelectorAll('.mobile-menu-link').forEach(link => {
+        link.addEventListener('click', () => {
+          if (isMenuOpen) toggleMobileMenu();
+        });
+      });
+    }
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
+    initPillNav();
     let savedTheme = 'light';
     try { savedTheme = localStorage.getItem('scamshield-theme') || 'light'; } catch (_) { /* Storage is optional. */ }
     setTheme(savedTheme);

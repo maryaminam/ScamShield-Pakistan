@@ -8,6 +8,8 @@
   <title>ScamShield Pakistan — Security made clear</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>tailwind.config = { theme: { extend: { colors: { surface: '#ffffff', panel: '#ffffff' } } } };</script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <link rel="stylesheet" href="{{ url_for('static', path='pill-nav.css') }}">
   <style>
     :root {
       color-scheme: light;
@@ -415,14 +417,37 @@
     }
 
     /* ── Severity text utilities ────────────────────────── */
-    .text-red-300 { color: var(--sev-critical) !important }
-    .text-orange-300 { color: var(--sev-high) !important }
-    .text-yellow-200 { color: #b25000 !important }
-    .text-green-300 { color: var(--sev-low) !important }
-    html[data-theme="dark"] .text-red-300 { color: var(--sev-critical) !important }
-    html[data-theme="dark"] .text-orange-300 { color: var(--sev-high) !important }
-    html[data-theme="dark"] .text-yellow-200 { color: var(--sev-medium) !important }
-    html[data-theme="dark"] .text-green-300 { color: var(--sev-low) !important }
+    .text-red-300 {
+      color: var(--sev-critical) !important
+    }
+
+    .text-orange-300 {
+      color: var(--sev-high) !important
+    }
+
+    .text-yellow-200 {
+      color: #b25000 !important
+    }
+
+    .text-green-300 {
+      color: var(--sev-low) !important
+    }
+
+    html[data-theme="dark"] .text-red-300 {
+      color: var(--sev-critical) !important
+    }
+
+    html[data-theme="dark"] .text-orange-300 {
+      color: var(--sev-high) !important
+    }
+
+    html[data-theme="dark"] .text-yellow-200 {
+      color: var(--sev-medium) !important
+    }
+
+    html[data-theme="dark"] .text-green-300 {
+      color: var(--sev-low) !important
+    }
 
     /* ── Tailwind bg overrides ───────────────────────────── */
     .bg-slate-950,
@@ -431,12 +456,31 @@
     .bg-slate-800 {
       background-color: var(--surface-soft) !important
     }
-    .bg-sky-500 { background-color: var(--accent) !important }
-    .hover\:bg-sky-400:hover { background-color: var(--accent-hover) !important }
-    .bg-red-500\/15 { background: var(--sev-critical-soft) !important }
-    .bg-orange-500\/15 { background: var(--sev-high-soft) !important }
-    .bg-yellow-400\/15 { background: var(--sev-medium-soft) !important }
-    .bg-green-500\/15 { background: var(--sev-low-soft) !important }
+
+    .bg-sky-500 {
+      background-color: var(--accent) !important
+    }
+
+    .hover\:bg-sky-400:hover {
+      background-color: var(--accent-hover) !important
+    }
+
+    .bg-red-500\/15 {
+      background: var(--sev-critical-soft) !important
+    }
+
+    .bg-orange-500\/15 {
+      background: var(--sev-high-soft) !important
+    }
+
+    .bg-yellow-400\/15 {
+      background: var(--sev-medium-soft) !important
+    }
+
+    .bg-green-500\/15 {
+      background: var(--sev-low-soft) !important
+    }
+
     .bg-sky-500\/10 {
       background: var(--accent-soft) !important;
       border-color: rgba(0, 113, 227, .20) !important
@@ -444,23 +488,47 @@
 
     /* ── Tailwind border overrides ───────────────────────── */
     .border-slate-800,
-    .border-slate-700 { border-color: var(--line) !important }
-    .divide-slate-800>*+* { border-color: var(--line) !important }
-    .border-b.border-slate-800 { border-color: var(--line) !important }
+    .border-slate-700 {
+      border-color: var(--line) !important
+    }
+
+    .divide-slate-800>*+* {
+      border-color: var(--line) !important
+    }
+
+    .border-b.border-slate-800 {
+      border-color: var(--line) !important
+    }
 
     /* ── Tailwind text overrides ─────────────────────────── */
     .text-slate-100,
     .text-slate-200,
-    .text-slate-300 { color: var(--text) !important }
-    .text-slate-400,
-    .text-slate-500 { color: var(--muted) !important }
-    .text-slate-950 { color: #fff !important }
-    .text-sky-300,
-    .text-sky-400 { color: var(--accent) !important }
-    .hover\:text-sky-300:hover,
-    .hover\:text-white:hover { color: var(--accent-hover) !important }
+    .text-slate-300 {
+      color: var(--text) !important
+    }
 
-    .inline-flex.rounded-full { font-weight: 650 }
+    .text-slate-400,
+    .text-slate-500 {
+      color: var(--muted) !important
+    }
+
+    .text-slate-950 {
+      color: #fff !important
+    }
+
+    .text-sky-300,
+    .text-sky-400 {
+      color: var(--accent) !important
+    }
+
+    .hover\:text-sky-300:hover,
+    .hover\:text-white:hover {
+      color: var(--accent-hover) !important
+    }
+
+    .inline-flex.rounded-full {
+      font-weight: 650
+    }
 
     /* ── Hero Score Section ──────────────────────────────── */
     .results-hero {
@@ -517,12 +585,25 @@
       pointer-events: none
     }
 
-    .hero-gauge-glow.active { opacity: .35 }
+    .hero-gauge-glow.active {
+      opacity: .35
+    }
 
-    .hero-gauge-glow--critical { background: var(--sev-critical) }
-    .hero-gauge-glow--high { background: var(--sev-high) }
-    .hero-gauge-glow--medium { background: var(--sev-medium) }
-    .hero-gauge-glow--low { background: var(--sev-low) }
+    .hero-gauge-glow--critical {
+      background: var(--sev-critical)
+    }
+
+    .hero-gauge-glow--high {
+      background: var(--sev-high)
+    }
+
+    .hero-gauge-glow--medium {
+      background: var(--sev-medium)
+    }
+
+    .hero-gauge-glow--low {
+      background: var(--sev-low)
+    }
 
     .hero-gauge-svg {
       position: relative;
@@ -568,9 +649,13 @@
     @keyframes pulse-critical {
 
       0%,
-      100% { opacity: .3 }
+      100% {
+        opacity: .3
+      }
 
-      50% { opacity: .55 }
+      50% {
+        opacity: .55
+      }
     }
 
     .hero-gauge-glow--critical.active {
@@ -652,7 +737,9 @@
       flex-shrink: 0
     }
 
-    .concern-chip-label { white-space: nowrap }
+    .concern-chip-label {
+      white-space: nowrap
+    }
 
     .concern-chip-detail {
       display: none;
@@ -665,7 +752,9 @@
     }
 
     .concern-chip:hover .concern-chip-detail,
-    .concern-chip.expanded .concern-chip-detail { display: inline }
+    .concern-chip.expanded .concern-chip-detail {
+      display: inline
+    }
 
     .concern-chip--critical {
       background: var(--sev-critical-soft);
@@ -692,7 +781,9 @@
       color: #b25000
     }
 
-    html[data-theme="dark"] .concern-chip--medium { color: var(--sev-medium) }
+    html[data-theme="dark"] .concern-chip--medium {
+      color: var(--sev-medium)
+    }
 
     .concern-chip--medium .concern-chip-dot {
       background: var(--sev-medium);
@@ -772,8 +863,13 @@
     }
 
     @media(max-width:767px) {
-      .concern-chip:hover .concern-chip-detail { display: none }
-      .concern-chip.expanded .concern-chip-detail { display: inline }
+      .concern-chip:hover .concern-chip-detail {
+        display: none
+      }
+
+      .concern-chip.expanded .concern-chip-detail {
+        display: inline
+      }
 
       .results-hero {
         padding: 2rem 1.5rem
@@ -852,11 +948,28 @@
       animation: page-in .25s ease
     }
 
-    @keyframes spin { to { transform: rotate(360deg) } }
-    @keyframes shimmer { to { background-position: -220% 0 } }
+    @keyframes spin {
+      to {
+        transform: rotate(360deg)
+      }
+    }
+
+    @keyframes shimmer {
+      to {
+        background-position: -220% 0
+      }
+    }
+
     @keyframes page-in {
-      from { opacity: 0; transform: translateY(10px) }
-      to { opacity: 1; transform: translateY(0) }
+      from {
+        opacity: 0;
+        transform: translateY(10px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
     }
 
     /* ── AI Explanation Section ──────────────────────────────────── */
@@ -867,7 +980,9 @@
       animation: page-in .42s cubic-bezier(.2, .8, .2, 1)
     }
 
-    .ai-provider-row { margin-bottom: .25rem }
+    .ai-provider-row {
+      margin-bottom: .25rem
+    }
 
     .ai-summary-hero,
     .ai-concerns-section,
@@ -942,11 +1057,27 @@
       color: var(--text)
     }
 
-    .ai-section-icon { width: 20px; height: 20px; flex-shrink: 0 }
-    .ai-section-icon--warn { color: #f59e0b }
-    .ai-section-icon--info { color: #6366f1 }
-    .ai-section-icon--action { color: #22c55e }
-    .ai-section-icon--safe { color: #0ea5e9 }
+    .ai-section-icon {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0
+    }
+
+    .ai-section-icon--warn {
+      color: #f59e0b
+    }
+
+    .ai-section-icon--info {
+      color: #6366f1
+    }
+
+    .ai-section-icon--action {
+      color: #22c55e
+    }
+
+    .ai-section-icon--safe {
+      color: #0ea5e9
+    }
 
     .ai-concern-count {
       display: inline-flex;
@@ -981,7 +1112,9 @@
       transition: transform .2s ease, background .2s ease, border-color .2s ease
     }
 
-    .ai-concern-card:last-child { margin-bottom: 0 }
+    .ai-concern-card:last-child {
+      margin-bottom: 0
+    }
 
     .ai-concern-card:hover {
       transform: translateX(3px);
@@ -1024,7 +1157,9 @@
       margin-top: .15rem
     }
 
-    .ai-concerns-list--safe .ai-concern-icon { color: #0ea5e9 }
+    .ai-concerns-list--safe .ai-concern-icon {
+      color: #0ea5e9
+    }
 
     .ai-concern-body span {
       font-size: .875rem;
@@ -1049,7 +1184,10 @@
       pointer-events: none
     }
 
-    .ai-meaning-content { position: relative; z-index: 1 }
+    .ai-meaning-content {
+      position: relative;
+      z-index: 1
+    }
 
     .ai-meaning-content p {
       font-size: .9rem;
@@ -1119,13 +1257,29 @@
     }
 
     @keyframes ai-card-in {
-      from { opacity: 0; transform: translateY(12px) }
-      to { opacity: 1; transform: translateY(0) }
+      from {
+        opacity: 0;
+        transform: translateY(12px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
     }
 
     @keyframes ai-sparkle {
-      0%, 100% { transform: scale(1) rotate(0deg); opacity: 1 }
-      50% { transform: scale(1.15) rotate(8deg); opacity: .8 }
+
+      0%,
+      100% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1
+      }
+
+      50% {
+        transform: scale(1.15) rotate(8deg);
+        opacity: .8
+      }
     }
 
     @media(max-width:767px) {
@@ -1168,6 +1322,7 @@
       position: relative;
       cursor: help;
     }
+
     .tt-icon {
       display: inline-flex;
       align-items: center;
@@ -1184,11 +1339,13 @@
       opacity: .7;
       transition: opacity .15s, transform .15s;
     }
+
     .tt-trigger:hover .tt-icon,
     .tt-trigger:focus .tt-icon {
       opacity: 1;
       transform: scale(1.15);
     }
+
     .tt-bubble {
       display: none;
       position: absolute;
@@ -1206,12 +1363,13 @@
       max-width: 300px;
       min-width: 180px;
       width: max-content;
-      box-shadow: 0 8px 24px rgba(0,0,0,.35);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
       z-index: 100;
       pointer-events: none;
       text-transform: none;
       letter-spacing: 0;
     }
+
     .tt-bubble::after {
       content: '';
       position: absolute;
@@ -1221,14 +1379,23 @@
       border: 6px solid transparent;
       border-top-color: var(--surface-solid, #1e293b);
     }
+
     .tt-trigger:hover .tt-bubble,
     .tt-trigger:focus .tt-bubble {
       display: block;
       animation: tt-fade-in .15s ease;
     }
+
     @keyframes tt-fade-in {
-      from { opacity: 0; transform: translateX(-50%) translateY(4px); }
-      to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(4px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
     }
 
     /* ── Analysis progress steps (SSE streaming) ──────────────── */
@@ -1238,6 +1405,7 @@
       gap: 0;
       margin: 1.25rem 0;
     }
+
     .progress-step {
       display: flex;
       align-items: flex-start;
@@ -1245,10 +1413,19 @@
       padding: 0.6rem 0;
       animation: progress-step-in .25s ease;
     }
+
     @keyframes progress-step-in {
-      from { opacity: 0; transform: translateY(6px); }
-      to   { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
+
     .progress-step-icon {
       display: flex;
       align-items: center;
@@ -1259,16 +1436,20 @@
       flex-shrink: 0;
       margin-top: 1px;
     }
+
     .progress-step--active .progress-step-icon {
       color: var(--accent, #0ea5e9);
     }
+
     .progress-step--done .progress-step-icon {
       color: var(--sev-low, #22c55e);
     }
+
     .progress-step--done .progress-step-icon svg {
       width: 16px;
       height: 16px;
     }
+
     .progress-spinner {
       display: block;
       width: 16px;
@@ -1278,24 +1459,31 @@
       border-radius: 50%;
       animation: spin .7s linear infinite;
     }
+
     @keyframes spin {
-      to { transform: rotate(360deg); }
+      to {
+        transform: rotate(360deg);
+      }
     }
+
     .progress-step-label {
       font-size: 0.88rem;
       font-weight: 600;
       color: var(--text, #e2e8f0);
       margin: 0;
     }
+
     .progress-step-detail {
       font-size: 0.78rem;
       color: var(--faint, #94a3b8);
       margin: 2px 0 0;
     }
+
     .progress-step--done .progress-step-label {
       color: var(--faint, #94a3b8);
       font-weight: 400;
     }
+
     .progress-step--done .progress-step-detail {
       color: var(--faint, #64748b);
     }
@@ -1304,54 +1492,70 @@
 </head>
 
 <body class="min-h-screen">
-  <div class="app-shell md:flex">
-    <aside class="sidebar border-b md:fixed md:inset-y-0 md:w-72 md:border-b-0 md:border-r">
-      <div class="flex items-center justify-between px-5 py-5 md:px-6 md:py-7">
-        <div class="flex items-center gap-3">
-          <div class="brand-mark grid h-10 w-10 place-items-center rounded-[13px] bg-sky-500 text-white"><svg
-              viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 3 5 6v5c0 5 3 8.5 7 10 4-1.5 7-5 7-10V6l-7-3Z" />
-              <path d="m9.4 12 1.7 1.8 3.8-4" />
-            </svg></div>
-          <div>
-            <p class="brand-name font-semibold leading-tight">ScamShield</p>
-            <p class="text-xs text-slate-400">Pakistan · Security desk</p>
-          </div>
+  <div class="app-shell">
+    <div id="pill-nav-container" class="pill-nav-container">
+      <nav class="pill-nav" aria-label="Primary">
+        <a class="pill-logo" href="#" aria-label="Home" id="pill-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--bg)" stroke-width="2"
+            style="width: 20px; height: 20px; display: block; margin: 0 auto;">
+            <path d="M12 3 5 6v5c0 5 3 8.5 7 10 4-1.5 7-5 7-10V6l-7-3Z" />
+            <path d="m9.4 12 1.7 1.8 3.8-4" />
+          </svg>
+        </a>
+
+        <div class="pill-nav-items desktop-only" id="pill-nav-items">
+          <ul class="pill-list" role="menubar">
+            <li role="none">
+              <button role="menuitem" class="pill active" aria-label="Dashboard" data-page-target="dashboard">
+                <span class="hover-circle" aria-hidden="true"></span>
+                <span class="label-stack">
+                  <span class="pill-label">Dashboard</span>
+                  <span class="pill-label-hover" aria-hidden="true">Dashboard</span>
+                </span>
+              </button>
+            </li>
+            <li role="none">
+              <button role="menuitem" class="pill" aria-label="Email analysis" data-page-target="email">
+                <span class="hover-circle" aria-hidden="true"></span>
+                <span class="label-stack">
+                  <span class="pill-label">Email analysis</span>
+                  <span class="pill-label-hover" aria-hidden="true">Email analysis</span>
+                </span>
+              </button>
+            </li>
+            <li role="none">
+              <button role="menuitem" class="pill" aria-label="URL analysis" data-page-target="url">
+                <span class="hover-circle" aria-hidden="true"></span>
+                <span class="label-stack">
+                  <span class="pill-label">URL analysis</span>
+                  <span class="pill-label-hover" aria-hidden="true">URL analysis</span>
+                </span>
+              </button>
+            </li>
+          </ul>
         </div>
-        <button class="theme-toggle grid h-10 w-10 place-items-center rounded-full md:hidden" data-theme-toggle
-          aria-label="Switch theme"><svg data-theme-icon viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="1.8"></svg></button>
-      </div>
-      <nav class="flex gap-1 overflow-x-auto px-3 pb-4 md:block md:space-y-1 md:px-4">
-        <button data-page-target="dashboard"
-          class="nav-item active flex shrink-0 items-center gap-3 whitespace-nowrap px-4 py-3 text-left text-sm md:w-full"><svg
-            class="nav-icon" viewBox="0 0 24 24">
-            <rect x="3" y="3" width="7" height="7" rx="1" />
-            <rect x="14" y="3" width="7" height="7" rx="1" />
-            <rect x="3" y="14" width="7" height="7" rx="1" />
-            <rect x="14" y="14" width="7" height="7" rx="1" />
-          </svg>Dashboard</button>
-        <button data-page-target="email"
-          class="nav-item flex shrink-0 items-center gap-3 whitespace-nowrap px-4 py-3 text-left text-sm md:w-full"><svg
-            class="nav-icon" viewBox="0 0 24 24">
-            <rect x="3" y="5" width="18" height="14" rx="2" />
-            <path d="m3 7 9 6 9-6" />
-          </svg>Email analysis</button>
-        <button data-page-target="url"
-          class="nav-item flex shrink-0 items-center gap-3 whitespace-nowrap px-4 py-3 text-left text-sm md:w-full"><svg
-            class="nav-icon" viewBox="0 0 24 24">
-            <path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1" />
-            <path d="M14 11a5 5 0 0 0-7.1-.1l-2 2a5 5 0 0 0 7.1 7.1l1.1-1.1" />
-          </svg>URL analysis</button>
+
+        <button class="theme-toggle rounded-full desktop-only theme-toggle-btn" data-theme-toggle
+          aria-label="Switch theme">
+          <svg data-theme-icon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"></svg>
+        </button>
+
+        <button class="mobile-menu-button mobile-only" aria-label="Toggle menu" id="hamburger-btn">
+          <span class="hamburger-line"></span>
+          <span class="hamburger-line"></span>
+        </button>
       </nav>
-      <div class="absolute bottom-0 hidden w-full px-6 pb-7 md:block"><button
-          class="theme-toggle flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium"
-          data-theme-toggle><svg data-theme-icon viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="1.8"></svg><span data-theme-label>Dark appearance</span></button>
-        <p class="mt-4 text-center text-xs text-slate-500">Forensic triage, made clear.</p>
+
+      <div class="mobile-menu-popover mobile-only" id="mobile-menu-ref">
+        <ul class="mobile-menu-list">
+          <li><button class="mobile-menu-link active" data-page-target="dashboard">Dashboard</button></li>
+          <li><button class="mobile-menu-link" data-page-target="email">Email analysis</button></li>
+          <li><button class="mobile-menu-link" data-page-target="url">URL analysis</button></li>
+          <li><button class="mobile-menu-link" data-theme-toggle>Toggle Theme</button></li>
+        </ul>
       </div>
-    </aside>
-    <main class="app-main min-w-0 flex-1 p-5 md:ml-72 md:p-10 lg:p-14">
+    </div>
+    <main class="app-main min-w-0 flex-1 p-5 pt-28 md:p-10 md:pt-32 lg:p-14 lg:pt-32">
       <section data-page="dashboard" class="page space-y-8">
         <div>
           <p class="eyebrow">SECURITY OVERVIEW</p>
