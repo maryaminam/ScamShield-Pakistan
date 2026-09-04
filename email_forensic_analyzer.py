@@ -631,6 +631,18 @@ class EmailForensicAnalyzer:
             
         return result
 
+    @staticmethod
+    def _same_registrable_domain(d1: str, d2: str) -> bool:
+        """Check if two domains share the same registrable root (last 2 labels).
+
+        Used to avoid flagging ESP tracking redirects (e.g. ``email.gamma.app``
+        wrapping ``gamma.app``) as URL mismatches.
+        """
+        def _root(d: str) -> str:
+            labels = d.rstrip(".").split(".")
+            return ".".join(labels[-2:]) if len(labels) >= 2 else d
+        return _root(d1) == _root(d2)
+
     def extract_urls(self) -> list[dict]:
         """Extract all URLs from the email body and detect display/href mismatches.
 
@@ -687,11 +699,15 @@ class EmailForensicAnalyzer:
 
                 # Check if display text itself looks like a URL with a
                 # different domain (e.g. text says paypal.com, href is evil.com).
+                # Skip the mismatch when both domains share the same registrable
+                # root — this covers legitimate ESP tracking redirects such as
+                # email.gamma.app wrapping gamma.app.
                 mismatch = False
                 if display.startswith(("http://", "https://")):
                     display_domain = urlparse(display).netloc.lower()
                     if display_domain and display_domain != res_domain:
-                        mismatch = True
+                        if not self._same_registrable_domain(display_domain, res_domain):
+                            mismatch = True
 
                 href_domain = urlparse(href).netloc.lower()
 
@@ -1253,6 +1269,28 @@ class EmailForensicAnalyzer:
             {m.lower() for m in _IMPERSONATION_PATTERNS.findall(combined)}
         )
 
+        # Filter out brand matches that have legitimate links in the body.
+        # If the email mentions "instagram" *and* links to instagram.com,
+        # it is a legitimate social-media reference, not impersonation.
+        if impersonation:
+            all_urls_in_body = _URL_RE.findall(combined)
+            legitimate_brands: set[str] = set()
+            for url_match in all_urls_in_body:
+                try:
+                    url_domain = urlparse(url_match).netloc.lower()
+                    for brand, legit_domains in _BRAND_DOMAINS.items():
+                        if any(
+                            url_domain == d or url_domain.endswith("." + d)
+                            for d in legit_domains
+                        ):
+                            legitimate_brands.add(brand)
+                except Exception:
+                    pass
+            if legitimate_brands:
+                impersonation = [
+                    b for b in impersonation if b not in legitimate_brands
+                ]
+
         # ── NLP zero-shot classification (lazy-loaded, graceful fallback) ──
         from nlp_phishing_classifier import classify_text
 
@@ -1525,19 +1563,24 @@ class EmailForensicAnalyzer:
             "DKIM" in f.get("message", "")
             for f in (spoofing or {}).get("findings", [])
         )
-        # Skip penalty when the mismatched DKIM domain is a known ESP.
+        # Skip penalty when the mismatched DKIM domain is a known ESP
+        # or a subdomain of the From domain (standard ESP custom-subdomain setup).
         dkim_is_esp = False
+        dkim_is_subdomain_of_from = False
         if dkim_anomaly:
+            from_domain_for_dkim = self._extract_domain(self.msg.get("From") or "")
             for a in header_anomalies.get("anomalies", []):
                 m = re.search(r"DKIM signing domain \(([^)]+)\)", a)
                 if m:
-                    dom = m.group(1)
+                    dom = m.group(1).lower()
                     if dom in _ESP_DOMAINS or any(
                         dom.endswith("." + esp) for esp in _ESP_DOMAINS
                     ):
                         dkim_is_esp = True
                         break
-        if dkim_anomaly and not spoofing_covers_dkim and not dkim_is_esp:
+                    if from_domain_for_dkim and dom.endswith("." + from_domain_for_dkim):
+                        dkim_is_subdomain_of_from = True
+        if dkim_anomaly and not spoofing_covers_dkim and not dkim_is_esp and not dkim_is_subdomain_of_from:
             pts = _WEIGHTS["header_anomaly"]
             score += pts
             breakdown["header_anomaly"] = (
@@ -1736,14 +1779,19 @@ class EmailForensicAnalyzer:
             )
 
         if return_domain and from_domain and return_domain != from_domain:
-            anomalies.append(
-                f"Return-Path ({return_domain}) differs from From ({from_domain})"
-            )
+            # Allow subdomain of From domain (typical ESP bounce setup,
+            # e.g. Return-Path cio72592.gamma.app for From gamma.app).
+            if not return_domain.endswith("." + from_domain):
+                anomalies.append(
+                    f"Return-Path ({return_domain}) differs from From ({from_domain})"
+                )
 
         if dkim_domain and from_domain and dkim_domain != from_domain:
-            anomalies.append(
-                f"DKIM signing domain ({dkim_domain}) differs from From ({from_domain})"
-            )
+            # Allow subdomain of From domain (standard ESP DKIM delegation).
+            if not dkim_domain.endswith("." + from_domain):
+                anomalies.append(
+                    f"DKIM signing domain ({dkim_domain}) differs from From ({from_domain})"
+                )
 
         return {
             "domains": domains,
