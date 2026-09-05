@@ -2,7 +2,6 @@
 
 A multi-layered email phishing forensic analyzer and URL scanner with a modern async web dashboard, local ML classification, and AI-powered plain-English explanations.
 
-
 ### Dashboard
 <img width="1918" height="861" alt="image" src="https://github.com/user-attachments/assets/1a417600-7ced-4c2e-8426-e28a8ee6714b" />
 
@@ -32,14 +31,14 @@ A multi-layered email phishing forensic analyzer and URL scanner with a modern a
 - **Authentication checks** — SPF, DKIM, DMARC, and Microsoft CompAuth from `Authentication-Results` headers, with `Received-SPF` fallback
 - **URL extraction & mismatch detection** — HTML `<a>` tag parsing with display-text vs. href domain comparison, redirect resolution, ESP same-root tolerance
 - **URL path analysis** — brand keyword and phishing lure term detection in link paths/filenames
-- **Homograph & punycode detection** — IDN homograph attacks via punycode, NFKD normalization, character substitution (1→l, 0→o), Levenshtein distance against known brands and Tranco top-5K domains
+- **Homograph & punycode detection** — IDN homograph attacks via punycode, NFKD normalization, character substitution (1→l, 0→o), Levenshtein distance against known brands and Tranco top-5K [...]
 - **Attachment analysis** — MD5 + SHA-256 hashing, risky extension detection (20+ types including executables, macros, archives), brand-keyword mismatch in filenames
 - **Sender domain reputation** — WHOIS + RDAP fallback for domain age; flags domains registered < 30 days ago
 - **URL domain reputation** — concurrent WHOIS, VirusTotal, and AbuseIPDB lookups on linked domains (up to 3 unique)
 - **DNS record validation** — concurrent queries for SPF, DMARC, and 9 DKIM selectors
 - **IP intelligence** — AbuseIPDB abuse-confidence scoring, ip-api.com geolocation (country, city, ISP, ASN)
 - **VirusTotal integration** — domain and file-hash scanning via VT v3 API
-- **Spoofing detection** — 5 independent checks: brand impersonation in display name, freemail with corporate persona, display-name vs. local-part mismatch (friendly-from spoof), Reply-To divergence, Return-Path divergence
+- **Spoofing detection** — 5 independent checks: brand impersonation in display name, freemail with corporate persona, display-name vs. local-part mismatch (friendly-from spoof), Reply-To diverg[...]
 - **Header anomaly detection** — From vs. Reply-To / Return-Path / DKIM signing domain mismatches, with ESP subdomain tolerance
 - **Timestamp analysis** — time-travel detection, excessive hop delays (>4 hours), future-dated Date headers
 - **Forensic X-Headers** — X-Mailer, X-Originating-IP, X-Spam-Status, and 9 more
@@ -49,7 +48,7 @@ A multi-layered email phishing forensic analyzer and URL scanner with a modern a
 - **HTML forensic report** — self-contained downloadable report with risk banner, print CSS
 
 ### URL Scanner
-- **Lexical analysis** — Shannon entropy (DGA detection), embedded credentials (@ trick), percent-encoding density, non-standard ports, IP-literal URLs, HTTPS, suspicious TLDs, excessive subdomain depth
+- **Lexical analysis** — Shannon entropy (DGA detection), embedded credentials (@ trick), percent-encoding density, non-standard ports, IP-literal URLs, HTTPS, suspicious TLDs, excessive subdoma[...]
 - **Redirect resolution** — follows up to 5 redirects with SSRF protection (blocks private IP resolution)
 - **Homograph detection** — punycode, Levenshtein distance against brand + Tranco top-5K domains
 - **Brand keyword analysis** — domain and path/filename brand impersonation checks
@@ -106,7 +105,7 @@ The tool calculates a deterministic **0–100 score** using 17+ weighted forensi
 
 **ML bonuses**: high-confidence (≥75%) ML predictions reinforce existing regex signals with up to 50% additional weight.
 
-**Content-signal cap**: when the sender domain is verified as old and no hard indicators (auth fail, URL mismatch, risky attachment, etc.) are present, soft signals are capped at 20 points and credential language at 30 points.
+**Content-signal cap**: when the sender domain is verified as old and no hard indicators (auth fail, URL mismatch, risky attachment, etc.) are present, soft signals are capped at 20 points and cr[...]
 
 ### Threat Levels
 
@@ -187,7 +186,7 @@ python web_app.py
 ### Web Workflow
 
 1. **Dashboard** — view session statistics and recent scan activity
-2. **Email Analysis** — upload a `.eml` file or paste raw email content, click "Analyze email", watch real-time progress, then explore 11 result tabs (Overview, AI Summary, Authentication, Spoofing, Headers, URLs, Attachments, Domain Reputation, Threat Patterns, IOCs, Report)
+2. **Email Analysis** — upload a `.eml` file or paste raw email content, click "Analyze email", watch real-time progress, then explore 11 result tabs (Overview, AI Summary, Authentication, Spoo[...]
 3. **URL Analysis** — enter any URL, click "Scan URL", review risk score and indicators, optionally toggle the AI Summary
 
 ### CLI Usage (Core Analyzer)
@@ -246,6 +245,13 @@ The `test_emails/` directory contains 20+ curated `.eml` files covering:
 - Young domain (WHOIS)
 - Combined critical indicators
 - Adversarial and real-world emails
+
+### External datasets used for testing
+
+I also tested the system using the following external datasets:
+
+- Emails: [phishing_pot](https://github.com/rf-peixoto/phishing_pot/tree/main) — a public collection of phishing emails used to validate the email forensics and detection pipeline.
+- URLs: [Phishing Site URLs (Kaggle)](https://www.kaggle.com/datasets/taruntiwarihp/phishing-site-urls) — a labeled dataset of phishing site URLs used to validate the URL scanner and risk scoring.
 
 ---
 
