@@ -1,9 +1,6 @@
 # ScamShield Pakistan
 
-ScamShield Pakistan is an email phishing forensic analyzer that now supports both:
-
-- Desktop GUI mode (CustomTkinter)
-- Web application mode (Flask)
+ScamShield Pakistan is an email phishing forensic analyzer - Web application (Flask)
 
 ## Features
 
@@ -33,15 +30,11 @@ Create a `.env` file in the project root:
 ```env
 VT_API=your_virustotal_api_key
 ABUSEIPDB_API=your_abuseipdb_api_key
+GROQ_API_KEY=your_groq_api_key
+GEMINI_API_KEY=your_gemini_api_key
 ```
 
 If keys are not present, those checks are skipped gracefully.
-
-## Run Desktop App
-
-```bash
-python forensic_gui.py
-```
 
 ## Run Web App
 
