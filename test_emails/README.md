@@ -68,5 +68,3 @@ I also tested the system using the following external datasets and included them
       python url_analyzer.py "$u" > "test_emails/url_results/$(echo "$u" | md5sum | cut -d' ' -f1).json"
     done
     ```
-
-If you'd like, I can add these sample folders (external_phishing_pot, url_results) to the repository as examples (empty placeholder + README) or import a small sample of records into test_emails/ for reproducible CI-like tests.
