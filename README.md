@@ -1,143 +1,250 @@
 # ScamShield Pakistan
 
-ScamShield Pakistan is an email phishing forensic analyzer that now supports both:
-
-- Desktop GUI mode (CustomTkinter)
-- Web application mode (Flask)
+A multi-layered email phishing forensic analyzer and URL scanner with a modern async web dashboard, local ML classification, and AI-powered plain-English explanations.
 
 ## Features
 
-- Header and metadata extraction
-- Routing path and originating IP analysis
-- SPF, DKIM, DMARC checks
-- URL extraction and display/href mismatch detection
-- Attachment hash extraction and risky extension detection
-- WHOIS-based sender domain age checks
-- DNS validation for SPF, DKIM, and DMARC records
-- AbuseIPDB and VirusTotal integration (optional API keys)
-- IOC extraction and HTML forensic report generation
+### Email Forensics
+- **Header & metadata extraction** — From, To, Subject, Date, Message-ID, Return-Path
+- **Routing path analysis** — hop-by-hop chronological reconstruction from Received headers, originating public IP detection
+- **Authentication checks** — SPF, DKIM, DMARC, and Microsoft CompAuth from `Authentication-Results` headers, with `Received-SPF` fallback
+- **URL extraction & mismatch detection** — HTML `<a>` tag parsing with display-text vs. href domain comparison, redirect resolution, ESP same-root tolerance
+- **URL path analysis** — brand keyword and phishing lure term detection in link paths/filenames
+- **Homograph & punycode detection** — IDN homograph attacks via punycode, NFKD normalization, character substitution (1→l, 0→o), Levenshtein distance against known brands and Tranco top-5K domains
+- **Attachment analysis** — MD5 + SHA-256 hashing, risky extension detection (20+ types including executables, macros, archives), brand-keyword mismatch in filenames
+- **Sender domain reputation** — WHOIS + RDAP fallback for domain age; flags domains registered < 30 days ago
+- **URL domain reputation** — concurrent WHOIS, VirusTotal, and AbuseIPDB lookups on linked domains (up to 3 unique)
+- **DNS record validation** — concurrent queries for SPF, DMARC, and 9 DKIM selectors
+- **IP intelligence** — AbuseIPDB abuse-confidence scoring, ip-api.com geolocation (country, city, ISP, ASN)
+- **VirusTotal integration** — domain and file-hash scanning via VT v3 API
+- **Spoofing detection** — 5 independent checks: brand impersonation in display name, freemail with corporate persona, display-name vs. local-part mismatch (friendly-from spoof), Reply-To divergence, Return-Path divergence
+- **Header anomaly detection** — From vs. Reply-To / Return-Path / DKIM signing domain mismatches, with ESP subdomain tolerance
+- **Timestamp analysis** — time-travel detection, excessive hop delays (>4 hours), future-dated Date headers
+- **Forensic X-Headers** — X-Mailer, X-Originating-IP, X-Spam-Status, and 9 more
+- **Phishing language detection** — regex patterns for urgency, credential harvesting, and brand impersonation with combining-diacritic normalization and legitimate-brand-URL filtering
+- **ML text classification** — local zero-shot classifier (DistilBERT-MNLI) detecting urgency, credential theft, brand impersonation, and social manipulation beyond regex
+- **IOC extraction** — aggregated IPs, domains, URLs, emails, and file hashes
+- **HTML forensic report** — self-contained downloadable report with risk banner, print CSS
+
+### URL Scanner
+- **Lexical analysis** — Shannon entropy (DGA detection), embedded credentials (@ trick), percent-encoding density, non-standard ports, IP-literal URLs, HTTPS, suspicious TLDs, excessive subdomain depth
+- **Redirect resolution** — follows up to 5 redirects with SSRF protection (blocks private IP resolution)
+- **Homograph detection** — punycode, Levenshtein distance against brand + Tranco top-5K domains
+- **Brand keyword analysis** — domain and path/filename brand impersonation checks
+- **Live page content inspection** — password input fields, cross-domain form actions, brand impersonation in page titles
+- **Reputation enrichment** — concurrent WHOIS, VirusTotal URL scan, and AbuseIPDB IP check
+- **0–100 risk score** with Critical / High / Medium / Low classification
+
+### AI Explanation Layer
+- **Provider chain** — Groq (openai/gpt-oss-20b) → Google Gemini (gemini-3.6-flash) → deterministic template fallback
+- **Structured output** — Pydantic-validated JSON schema (plain summary, key concerns, what this means, recommended actions)
+- **Hallucination guard** — verified-entity extraction; replaces fabricated concerns with verified signals; falls back to deterministic summary on invented domains
+- **Signal-strength annotations** — classifies each scoring signal as conclusive / strong / moderate / weak for LLM emphasis guidance
+- **Risk-level tone** — urgent for Critical, reassuring for Low
+- **In-process caching** — SHA-256 keyed to avoid duplicate LLM calls
+
+### Web Dashboard
+- **FastAPI async server** with Uvicorn
+- **SSE streaming** — real-time analysis progress (parsing → auth → URLs → patterns → enrichment → scoring)
+- **3-page SPA** — Dashboard (stats + activity table), Email Analysis (upload/paste + 11 result tabs), URL Analysis
+- **Light/dark theme** with CSS variables and localStorage persistence
+- **Animated pill navigation** (GSAP), glassmorphism cards, animated risk gauge rings
+- **Inline tooltip glossary** — 17 technical terms auto-wrapped with explanations
+- **Security headers** — CSP, HSTS, X-Frame-Options, Referrer-Policy, X-Content-Type-Options
+- **Rate limiting** — sliding window per IP (30 req/min email, 20 URL, 10 AI)
+- **Auto port discovery** — falls back to next available port if 5000 is occupied
+
+---
+
+## Risk Scoring Model
+
+The tool calculates a deterministic **0–100 score** using 17+ weighted forensic signals:
+
+| Signal | Weight | Description |
+|--------|--------|-------------|
+| Credential language | +40 | Credential-harvesting phrases (password, SSN, etc.) |
+| CompAuth failure | +25 | Microsoft composite authentication failed |
+| Homograph domain | +25 | Link domain mimics a known brand via punycode |
+| URL path brand spoof | +25 | Brand keyword in link path not matching domain |
+| Auth failure | +22 | SPF/DKIM/DMARC fail or softfail |
+| Spoofing | +20 | Display-name / Reply-To / Return-Path spoofing (diminishing returns) |
+| Urgency language | +20 | Urgency phrases with ML reinforcement bonus |
+| URL mismatch | +18 | Display/href domain mismatch |
+| Header anomaly | +15 | DKIM signing domain mismatch |
+| Young URL domain | +14 | Linked domain recently registered |
+| Risky attachment | +13 | Dangerous file extension |
+| Young domain | +12 | Sender domain < 30 days old |
+| ML manipulation | +12 | Zero-shot classifier caught what regex missed |
+| Brand impersonation | +10 | Brand keywords in subject/body |
+| URL path lure | +10 | Phishing lure terminology in link path |
+| AbuseIP URL | +20 | Linked domain IP flagged by AbuseIPDB |
+| VT URL malicious | +25 | Linked domain flagged by VirusTotal |
+| Abuse IP | +8 | Originating IP flagged on AbuseIPDB |
+| Attachment brand spoof | +20 | Brand keyword in attachment filename |
+
+**ML bonuses**: high-confidence (≥75%) ML predictions reinforce existing regex signals with up to 50% additional weight.
+
+**Content-signal cap**: when the sender domain is verified as old and no hard indicators (auth fail, URL mismatch, risky attachment, etc.) are present, soft signals are capped at 20 points and credential language at 30 points.
+
+### Threat Levels
+
+| Score | Level |
+|-------|-------|
+| 75–100 | Critical |
+| 50–74 | High |
+| 25–49 | Medium |
+| 0–24 | Low |
+
+---
+
+## Tech Stack
+
+- **Python 3.13** with FastAPI + Uvicorn (async web server)
+- **BeautifulSoup4** for HTML email parsing
+- **dnspython** + **aiodns** for DNS record validation
+- **python-whois** + RDAP for domain age checks
+- **httpx** for async HTTP (VirusTotal, AbuseIPDB, geolocation)
+- **HuggingFace Transformers** + **PyTorch** for zero-shot ML classification (DistilBERT-MNLI)
+- **Groq SDK** + **Google GenAI SDK** for AI explanations
+- **Pydantic v2** for structured LLM output validation
+- **GSAP** for frontend navigation animations
+- **Tailwind CSS** (CDN) for utility-first styling
+- **Inter** + **Outfit** fonts from Google Fonts
+
+---
 
 ## Setup
 
-1. Create and activate a virtual environment.
+1. Create and activate a virtual environment:
+
+```bash
+python -m venv .venv
+# Windows
+.venv\Scripts\activate
+# Linux/macOS
+source .venv/bin/activate
+```
+
 2. Install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Optional API Keys
-
-Create a `.env` file in the project root:
+3. (Optional) Create a `.env` file in the project root for API keys:
 
 ```env
 VT_API=your_virustotal_api_key
 ABUSEIPDB_API=your_abuseipdb_api_key
+GROQ_API_KEY=your_groq_api_key
+GEMINI_API_KEY=your_gemini_api_key
 ```
 
-If keys are not present, those checks are skipped gracefully.
+Keys that are not present are skipped gracefully — the tool works without them.
 
-## Run Desktop App
+---
 
-```bash
-python forensic_gui.py
-```
+## Usage
 
-## Run Web App
+### Run the Web App
 
 ```bash
 python web_app.py
 ```
 
-Then open:
+Then open [http://127.0.0.1:5000](http://127.0.0.1:5000).
 
-http://127.0.0.1:5000
+If port 5000 is blocked, set a custom port:
 
-If port 5000 is blocked on your system, set a custom port:
-
-```bash
+```powershell
 # PowerShell
 $env:WEB_APP_PORT="5050"
 python web_app.py
 ```
 
-## Web Workflow
+### Web Workflow
 
-- Upload a `.eml` file or paste raw email content.
-- Click `Analyze Email`.
-- Review risk score, metadata, authentication, URLs, attachments, and IOCs.
-- Use the generated HTML report shown in the interface for export/reporting.
+1. **Dashboard** — view session statistics and recent scan activity
+2. **Email Analysis** — upload a `.eml` file or paste raw email content, click "Analyze email", watch real-time progress, then explore 11 result tabs (Overview, AI Summary, Authentication, Spoofing, Headers, URLs, Attachments, Domain Reputation, Threat Patterns, IOCs, Report)
+3. **URL Analysis** — enter any URL, click "Scan URL", review risk score and indicators, optionally toggle the AI Summary
+
+### CLI Usage (Core Analyzer)
+
+```bash
+python email_forensic_analyzer.py path/to/email.eml
 ```
-
-You can then:
-1. Load a `.eml` file (or paste raw headers)
-2. Run analysis
-3. Review all tabs (metadata, auth, routing, URLs, attachments, threat intel)
-4. Export report and IOCs
-
----
-
-## Risk Scoring Model
-
-The tool calculates a deterministic **0–100 score** using weighted forensic signals:
-
-- Authentication failure (SPF/DKIM fail/softfail): **+25**
-- URL display/href mismatch: **+20**
-- Risky attachment extension: **+15**
-- Young sender domain (<30 days): **+15**
-- Abusive source IP (AbuseIPDB ≥25): **+10**
-- Urgency language patterns: **+5**
-- Credential theft language patterns: **+5**
-- Brand impersonation patterns: **+5**
-
-### Threat Levels
-- **75–100**: Critical
-- **50–74**: High
-- **25–49**: Medium
-- **0–24**: Low
 
 ---
 
 ## Exports
 
-- **HTML Report**: complete forensic summary
-- **JSON IOC Export**: structured indicator output
-- **CSV IOC Export**: analyst-friendly flat format
+- **HTML Forensic Report** — self-contained downloadable report with risk banner, all sections, and print-optimized CSS
+- **IOCs** — clickable copy-to-clipboard indicators (IPs, domains, URLs, emails, file hashes) in the web UI
 
 ---
 
 ## Project Structure
 
 ```text
-Email-Header-Phishing-Investigation-Tool/
-├── forensic_gui.py
-├── email_forensic_analyzer.py
-├── requirements.txt
-├── README.md
-└── docs/
-    └── images/
+ScamShield-Pakistan/
+├── email_forensic_analyzer.py   # Core analysis engine (3019 lines)
+├── url_analyzer.py              # Standalone URL scanner (710 lines)
+├── ai_explainer.py              # AI explanation layer (910 lines)
+├── nlp_phishing_classifier.py   # Local ML classifier (128 lines)
+├── web_app.py                   # FastAPI web server (601 lines)
+├── generate_report.py           # Report generation utilities
+├── templates/
+│   └── index.html               # Web dashboard SPA (1739 lines)
+├── static/
+│   ├── app.js                   # Client-side JS (563 lines)
+│   └── pill-nav.css             # Navigation styles (302 lines)
+├── test_emails/                 # 20+ curated test .eml files
+├── tranco_top_10k.txt           # Top domains for homograph detection
+├── requirements.txt             # Python dependencies
+├── runtime.txt                  # Python version pin (3.13.3)
+├── .env                         # API keys (not committed)
+└── .gitignore
 ```
+
+---
+
+## Test Emails
+
+The `test_emails/` directory contains 20+ curated `.eml` files covering:
+
+- Clean legitimate emails
+- SPF/DKIM/DMARC authentication failures
+- Brand impersonation (PayPal, Alibaba)
+- Freemail with corporate display name
+- Reply-To and Return-Path divergence
+- URL display/href mismatch
+- Risky executable attachments
+- Phishing urgency and credential-harvesting language
+- Timestamp anomalies
+- Young domain (WHOIS)
+- Combined critical indicators
+- Adversarial and real-world emails
 
 ---
 
 ## Roadmap
 
-- Machine learning-assisted phishing classification
 - IMAP mailbox ingestion workflow
 - STIX/TAXII export format support
 - Analyst case management enhancements
 - Expanded IOC enrichment sources
+- Batch email analysis
 
 ---
 
 ## Disclaimer
 
-This tool is intended for **defensive cybersecurity, incident response, and educational use only**.  
+This tool is intended for **defensive cybersecurity, incident response, and educational use only**.
 Users are responsible for compliance with all applicable laws, API provider terms, and organizational policies.
 
 ---
 
 ## Author
 
-**Maryam Inam**  
+**Maryam Inam**
 GitHub: [@maryaminam](https://github.com/maryaminam)
