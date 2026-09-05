@@ -2,6 +2,28 @@
 
 A multi-layered email phishing forensic analyzer and URL scanner with a modern async web dashboard, local ML classification, and AI-powered plain-English explanations.
 
+
+### Dashboard
+<img width="1918" height="861" alt="image" src="https://github.com/user-attachments/assets/1a417600-7ced-4c2e-8426-e28a8ee6714b" />
+
+
+### Email Analyzer
+<img width="1906" height="865" alt="image" src="https://github.com/user-attachments/assets/4dd6f27e-c089-4811-bd08-f105a3644fc0" />
+
+<img width="1918" height="871" alt="image" src="https://github.com/user-attachments/assets/96562adc-bbf2-48c4-afbf-9cf4e8b238ce" />
+
+<img width="1905" height="867" alt="image" src="https://github.com/user-attachments/assets/f2547c73-27bb-4681-af19-d76f45261628" />
+
+### URL Analyzer
+<img width="1905" height="861" alt="image" src="https://github.com/user-attachments/assets/f8328767-b408-4007-b99b-e3f21e2d7732" />
+
+<img width="1905" height="787" alt="image" src="https://github.com/user-attachments/assets/6c4b0134-b550-4a4f-a45d-8cd99d4f76e1" />
+
+<img width="1901" height="872" alt="image" src="https://github.com/user-attachments/assets/42ea9ca5-5efc-4fc3-937b-4262bc4941cd" />
+
+
+
+
 ## Features
 
 ### Email Forensics
